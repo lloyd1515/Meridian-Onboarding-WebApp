@@ -1,0 +1,3 @@
+# Cloudflare Pages SPA Routing Fallback
+# Rewrites all requests to index.html to support React Router's BrowserRouter (clean URLs)
+/*  /index.html  200

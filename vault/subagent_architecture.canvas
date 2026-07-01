@@ -1,0 +1,38 @@
+{
+	"nodes":[
+		{"id":"1111111111111111","type":"text","x":500,"y":0,"width":300,"height":150,"text":"## 🌌 Core Coordinator\n- **Role**: Antigravity orchestrator\n- **Tasks**: Spawns specialized subagents, verifies deliverables, integrates code, manages progress tracking.","color":"6"},
+		{"id":"2222222222222222","type":"text","x":0,"y":250,"width":250,"height":150,"text":"### 🗄️ Subagent: DBModelsDeveloper\n- **Files**: `server/app/domain/entities/`, `infrastructure/database.py`\n- **Tasks**: Create database tables for employees, checklists, schedules with SQLAlchmey 2.0. Write Alembic migrations.","color":"1"},
+		{"id":"3333333333333333","type":"text","x":300,"y":250,"width":250,"height":150,"text":"### 🔐 Subagent: AuthBackendDeveloper\n- **Files**: `server/app/routes/auth.py`, `services/auth_service.py`\n- **Tasks**: Write FastAPI routes for signup & login. Implement bcrypt password hashing & JWT generation/verification.","color":"1"},
+		{"id":"4444444444444444","type":"text","x":600,"y":250,"width":250,"height":150,"text":"### 📋 Subagent: ChecklistBackendDeveloper\n- **Files**: `server/app/routes/checklists.py`, `services/checklist_service.py`\n- **Tasks**: Write endpoints for checklists, state transitions, templating per department, skip logic with dependency resolution.","color":"1"},
+		{"id":"5555555555555555","type":"text","x":900,"y":250,"width":250,"height":150,"text":"### 📅 Subagent: SchedulerBackendDeveloper\n- **Files**: `server/app/routes/scheduler.py`, `services/scheduler_service.py`\n- **Tasks**: Write scheduling routes, dynamic occupancy computation, 3-day office limit check, buddy co-presence validation.","color":"1"},
+		{"id":"6666666666666666","type":"text","x":1200,"y":250,"width":250,"height":150,"text":"### 💾 Subagent: BackupBackendDeveloper\n- **Files**: `server/app/routes/backup.py`, `services/backup_service.py`\n- **Tasks**: Implement JSON export and validated JSON import with Zod schema verification & Ghost Buddy reference audits.","color":"1"},
+		{"id":"7777777777777777","type":"text","x":500,"y":500,"width":300,"height":150,"text":"### 🔌 Subagent: APIClientDeveloper\n- **Files**: `src/api/client.ts`, `src/hooks/`\n- **Tasks**: Write frontend HTTP client wrapper. Implement TanStack Query hooks replacing localforage db calls.","color":"2"},
+		{"id":"aaaaaaaaaaaaaaaa","type":"text","x":150,"y":750,"width":250,"height":150,"text":"### 🔒 Subagent: AuthUIUpdater\n- **Files**: `src/features/auth/LoginPage.tsx`, `context/AuthContext.tsx`\n- **Tasks**: Integrate JWT storage and claims checking. Link Quick Login and Signup to API endpoints.","color":"4"},
+		{"id":"8888888888888888","type":"text","x":500,"y":750,"width":250,"height":150,"text":"### 📑 Subagent: ChecklistUIUpdater\n- **Files**: `src/features/onboarding/OnboardingChecklist.tsx`\n- **Tasks**: Update checklist views, translate to English, implement inline skip panel, modal skip, and drawer skip.","color":"4"},
+		{"id":"9999999999999999","type":"text","x":850,"y":750,"width":250,"height":150,"text":"### 📆 Subagent: SchedulerUIUpdater\n- **Files**: `src/features/hr-admin/HybridScheduler.tsx`\n- **Tasks**: Refactor weekly scheduler calendar, display buddy co-presence status, enforce strict 3-day blocks, warn on limit.","color":"4"},
+		{"id":"bbbbbbbbbbbbbbbb","type":"text","x":500,"y":1000,"width":300,"height":150,"text":"### 📝 Subagent: DocumentationArchitect\n- **Files**: `ASSUMPTIONS.md`, `DECISIONS.md`, `WHAT_I_WOULD_DO_NEXT.md`\n- **Tasks**: Write the final required Markdown documentation files in the root folder, detailing full-stack decisions.","color":"5"},
+		{"id":"cccccccccccccccc","type":"text","x":150,"y":1000,"width":300,"height":150,"text":"### 🎨 Subagent: AestheticsSpecialist\n- **Files**: `src/index.css`, component styles\n- **Tasks**: Apply brutalist styling guidelines, CSS variables, and WCAG AA contrast adjustments across the application UI.","color":"5"}
+	],
+	"edges":[
+		{"id":"edge-1","fromNode":"1111111111111111","fromSide":"bottom","toNode":"2222222222222222","toSide":"top","toEnd":"arrow"},
+		{"id":"edge-2","fromNode":"1111111111111111","fromSide":"bottom","toNode":"3333333333333333","toSide":"top","toEnd":"arrow"},
+		{"id":"edge-3","fromNode":"1111111111111111","fromSide":"bottom","toNode":"4444444444444444","toSide":"top","toEnd":"arrow"},
+		{"id":"edge-4","fromNode":"1111111111111111","fromSide":"bottom","toNode":"5555555555555555","toSide":"top","toEnd":"arrow"},
+		{"id":"edge-5","fromNode":"1111111111111111","fromSide":"bottom","toNode":"6666666666666666","toSide":"top","toEnd":"arrow"},
+		{"id":"edge-6","fromNode":"2222222222222222","fromSide":"bottom","toNode":"7777777777777777","toSide":"left","toEnd":"arrow"},
+		{"id":"edge-7","fromNode":"3333333333333333","fromSide":"bottom","toNode":"7777777777777777","toSide":"top","toEnd":"arrow"},
+		{"id":"edge-8","fromNode":"4444444444444444","fromSide":"bottom","toNode":"7777777777777777","toSide":"top","toEnd":"arrow"},
+		{"id":"edge-9","fromNode":"5555555555555555","fromSide":"bottom","toNode":"7777777777777777","toSide":"top","toEnd":"arrow"},
+		{"id":"edge-10","fromNode":"6666666666666666","fromSide":"bottom","toNode":"7777777777777777","toSide":"right","toEnd":"arrow"},
+		{"id":"edge-11","fromNode":"7777777777777777","fromSide":"bottom","toNode":"aaaaaaaaaaaaaaaa","toSide":"top","toEnd":"arrow"},
+		{"id":"edge-12","fromNode":"7777777777777777","fromSide":"bottom","toNode":"8888888888888888","toSide":"top","toEnd":"arrow"},
+		{"id":"edge-13","fromNode":"7777777777777777","fromSide":"bottom","toNode":"9999999999999999","toSide":"top","toEnd":"arrow"},
+		{"id":"edge-14","fromNode":"aaaaaaaaaaaaaaaa","fromSide":"bottom","toNode":"bbbbbbbbbbbbbbbb","toSide":"left","toEnd":"arrow"},
+		{"id":"edge-15","fromNode":"8888888888888888","fromSide":"bottom","toNode":"bbbbbbbbbbbbbbbb","toSide":"top","toEnd":"arrow"},
+		{"id":"edge-16","fromNode":"9999999999999999","fromSide":"bottom","toNode":"bbbbbbbbbbbbbbbb","toSide":"right","toEnd":"arrow"},
+		{"id":"edge-17","fromNode":"aaaaaaaaaaaaaaaa","fromSide":"bottom","toNode":"cccccccccccccccc","toSide":"top","toEnd":"arrow"},
+		{"id":"edge-18","fromNode":"8888888888888888","fromSide":"bottom","toNode":"cccccccccccccccc","toSide":"top","toEnd":"arrow"},
+		{"id":"edge-19","fromNode":"9999999999999999","fromSide":"bottom","toNode":"cccccccccccccccc","toSide":"top","toEnd":"arrow"},
+		{"id":"edge-20","fromNode":"cccccccccccccccc","fromSide":"bottom","toNode":"bbbbbbbbbbbbbbbb","toSide":"bottom","toEnd":"arrow"}
+	]
+}

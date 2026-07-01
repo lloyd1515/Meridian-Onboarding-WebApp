@@ -1,0 +1,268 @@
+import React, { useEffect, useState } from 'react';
+import { useDb } from '../../context/DbContext';
+import { Employee } from '../../services/db';
+
+interface ScheduledEmployee extends Employee {
+  isNewHire: boolean;
+  hasBuddyOverlap: boolean;
+  isBuddyRemote: boolean;
+}
+
+export const HybridScheduler: React.FC = () => {
+  const { employees, scheduler, updateScheduler } = useDb();
+  
+  const [columns, setColumns] = useState<Record<string, string[]>>({
+    '0': [], '1': [], '2': [], '3': [], '4': []
+  });
+  
+  const [draggedEmpId, setDraggedEmpId] = useState<string | null>(null);
+  const [sourceColIdx, setSourceColIdx] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (scheduler) {
+      setColumns(scheduler);
+    }
+  }, [scheduler]);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = async (colIdx: string) => {
+    if (!draggedEmpId) return;
+
+    const targetList = [...(columns[colIdx] || [])];
+    if (targetList.includes(draggedEmpId)) return; // Avoid duplicate placement on same day
+
+    // Limit to max 3 office days per week
+    const scheduledDaysCount = Object.keys(columns).reduce((count, key) => {
+      if (key === sourceColIdx) return count;
+      const dayEmps = columns[key] || [];
+      if (dayEmps.includes(draggedEmpId)) {
+        return count + 1;
+      }
+      return count;
+    }, 0);
+
+    if (scheduledDaysCount >= 3) {
+      alert("🔒 Strict limit reached: This employee is already scheduled for 3 office days this week.");
+      return;
+    }
+
+    // Cap daily capacity at 130
+    if (targetList.length + 1 > 130) {
+      alert("🔒 Capacity limit reached! The office cannot exceed 130 employees on any single day.");
+      return;
+    }
+
+    const updatedCols = { ...columns };
+
+    if (sourceColIdx !== null) {
+      updatedCols[sourceColIdx] = (updatedCols[sourceColIdx] || []).filter(id => id !== draggedEmpId);
+    }
+
+    updatedCols[colIdx] = [...targetList, draggedEmpId];
+
+    setColumns(updatedCols);
+    await updateScheduler(updatedCols);
+
+    setDraggedEmpId(null);
+    setSourceColIdx(null);
+  };
+
+  const handleDropUnassigned = async () => {
+    if (!draggedEmpId) return;
+    if (sourceColIdx !== null) {
+      const updatedCols = { ...columns };
+      updatedCols[sourceColIdx] = (updatedCols[sourceColIdx] || []).filter(id => id !== draggedEmpId);
+      setColumns(updatedCols);
+      await updateScheduler(updatedCols);
+    }
+    setDraggedEmpId(null);
+    setSourceColIdx(null);
+  };
+
+  const getScheduledDetails = (empId: string, colIdx: string): ScheduledEmployee | null => {
+    const emp = employees.find(e => e.id === empId);
+    if (!emp) return null;
+
+    const isNewHire = emp.id === 'emp-newhire' || (emp.id.startsWith('emp-') && emp.id.length > 10 && !isNaN(Number(emp.id.replace('emp-', ''))));
+    let hasBuddyOverlap = false;
+    let isBuddyRemote = false;
+
+    if (isNewHire && emp.buddyId) {
+      const buddyScheduledToday = (columns[colIdx] || []).includes(emp.buddyId);
+      if (buddyScheduledToday) {
+        hasBuddyOverlap = true;
+      } else {
+        isBuddyRemote = true;
+      }
+    }
+
+    return {
+      ...emp,
+      isNewHire,
+      hasBuddyOverlap,
+      isBuddyRemote,
+    };
+  };
+
+  const days = [
+    { label: 'MON', desc: 'Monday' },
+    { label: 'TUE', desc: 'Tuesday' },
+    { label: 'WED', desc: 'Wednesday' },
+    { label: 'THU', desc: 'Thursday' },
+    { label: 'FRI', desc: 'Friday' }
+  ];
+
+  const scheduledEmpIds = new Set<string>();
+  Object.values(columns).forEach(list => {
+    (list || []).forEach(id => scheduledEmpIds.add(id));
+  });
+  
+  const unassignedEmployees = employees.filter(emp => !scheduledEmpIds.has(emp.id));
+
+  return (
+    <div className="flex flex-col gap-6 font-sans">
+      <div className="border border-border bg-surface p-6 rounded-2xl shadow-sm">
+        <h2 className="text-h1 font-bold text-[#0B2A3D] mb-1">Team Hybrid Scheduler</h2>
+        <p className="text-body-sm text-text-muted">
+          Drag and drop employees to schedule office presence days and monitor physical capacity.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
+        <div
+          onDragOver={handleDragOver}
+          onDrop={handleDropUnassigned}
+          className="border border-border bg-[#F8FAFC] p-4 rounded-2xl flex flex-col gap-3 min-h-[520px] max-h-[650px] lg:col-span-1 shadow-sm transition-all duration-200 hover:border-accent"
+        >
+          <div className="border-b border-border pb-2.5">
+            <h3 className="font-bold text-[#0B2A3D] text-body uppercase tracking-wider">Unassigned Pool</h3>
+            <span className="font-mono text-[10px] text-text-muted mt-1 block font-bold">{unassignedEmployees.length} EMPLOYEES</span>
+          </div>
+
+          <div className="flex-grow flex flex-col gap-2 overflow-y-auto pr-1">
+            {unassignedEmployees.map(emp => {
+              const isNew = emp.id === 'emp-newhire' || (emp.id.startsWith('emp-') && emp.id.length > 10 && !isNaN(Number(emp.id.replace('emp-', ''))));
+              return (
+                <div
+                  key={emp.id}
+                  draggable
+                  onDragStart={(e) => {
+                    setDraggedEmpId(emp.id);
+                    setSourceColIdx(null);
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
+                  className={`border border-border p-3 cursor-move bg-white rounded-xl flex flex-col gap-1.5 transition-all hover:bg-slate-50 shadow-sm ${
+                    isNew ? 'border-accent bg-[#E9F1F3]' : ''
+                  }`}
+                >
+                  <div className="flex justify-between items-start gap-1">
+                    <span className="font-bold text-body-sm text-[#0B2A3D] truncate">{emp.name}</span>
+                    {isNew && (
+                      <span className="text-[8px] font-mono border border-accent text-accent px-1 font-bold bg-white rounded uppercase tracking-wider shrink-0">NEW</span>
+                    )}
+                  </div>
+                  <span className="text-caption text-text-muted font-mono leading-none truncate">{emp.role}</span>
+                </div>
+              );
+            })}
+
+            {unassignedEmployees.length === 0 && (
+              <div className="flex-grow border border-dashed border-border rounded-xl flex items-center justify-center p-6 select-none bg-slate-50/30">
+                <span className="text-caption text-text-muted font-mono text-center font-bold tracking-wider">ALL ASSIGNED</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="lg:col-span-5 grid grid-cols-1 md:grid-cols-5 gap-4">
+          {days.map((day, idx) => {
+            const colIdx = idx.toString();
+            const empIds = columns[colIdx] || [];
+            
+            const totalOccupancy = empIds.length;
+            const isAtLimit = totalOccupancy >= 124; // 95% of 130 capacity is 123.5 -> 124
+
+            return (
+              <div
+                key={day.label}
+                onDragOver={handleDragOver}
+                onDrop={() => handleDrop(colIdx)}
+                className="border border-border bg-surface p-4 rounded-2xl min-h-[520px] flex flex-col gap-3.5 transition-all duration-200 hover:border-accent shadow-sm"
+              >
+                {/* Day Header */}
+                <div className="border-b border-border pb-2.5 select-none">
+                  <h3 className="font-bold text-h2 leading-none text-[#0B2A3D]">{day.label}</h3>
+                  <span className="font-mono text-caption text-text-muted mt-1 block font-semibold">{day.desc}</span>
+                </div>
+
+                {/* Occupancy Counters */}
+                <div className="flex flex-col gap-1 select-none">
+                  <span className={`font-mono text-caption uppercase font-bold ${isAtLimit ? 'text-danger' : 'text-text-primary'}`}>
+                    Ocupare: {totalOccupancy}/130 locuri
+                  </span>
+                  
+                  {isAtLimit && (
+                    <div className="border-l-4 border-danger bg-red-50 text-danger text-[10px] p-2.5 font-mono rounded mt-1 leading-tight font-bold">
+                      ⚠️ ALERT: Capacity threshold reached.
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex-grow flex flex-col gap-2.5 mt-1">
+                  {empIds.map(empId => {
+                    const details = getScheduledDetails(empId, colIdx);
+                    if (!details) return null;
+
+                    return (
+                      <div
+                        key={empId}
+                        draggable
+                        onDragStart={(e) => {
+                          setDraggedEmpId(empId);
+                          setSourceColIdx(colIdx);
+                          e.dataTransfer.effectAllowed = 'move';
+                        }}
+                        className={`border border-border p-3 cursor-move bg-white rounded-xl flex flex-col gap-2 transition-all hover:bg-slate-50 shadow-sm ${
+                          details.isNewHire ? 'border-accent bg-[#E9F1F3]' : ''
+                        }`}
+                      >
+                        <div className="flex justify-between items-start gap-1">
+                          <span className="font-bold text-body-sm text-[#0B2A3D] truncate">{details.name}</span>
+                          {details.isNewHire && (
+                            <span className="text-[8px] font-mono border border-accent text-accent px-1 font-bold bg-white rounded uppercase tracking-wider shrink-0">NEW</span>
+                          )}
+                        </div>
+                        <span className="text-caption text-text-muted font-mono leading-none truncate">{details.role}</span>
+
+                        {details.hasBuddyOverlap && (
+                          <span className="font-mono text-[9px] bg-success text-white px-2 py-0.5 w-fit rounded font-bold uppercase tracking-wider">
+                            ✓ OVERLAP
+                          </span>
+                        )}
+                        {details.isBuddyRemote && (
+                          <span className="font-mono text-[9px] border border-warning/45 bg-yellow-50/50 text-warning px-2 py-0.5 w-fit rounded font-bold uppercase tracking-wider">
+                            NO OVERLAP
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {empIds.length === 0 && (
+                    <div className="flex-grow border border-dashed border-border rounded-xl flex items-center justify-center p-6 select-none bg-slate-50/30 hover:bg-slate-50 transition-colors">
+                      <span className="text-caption text-text-muted font-mono text-center font-bold tracking-wider">DRAG HERE</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+      </div>
+    </div>
+  );
+};

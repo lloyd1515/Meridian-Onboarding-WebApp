@@ -1,0 +1,29 @@
+# Node dependencies
+node_modules/
+
+# Production builds
+dist/
+
+# Local Environment and Logs
+*.log
+chrome_out.log
+chrome_err.log
+
+# Browser profiles
+chrome_profile/
+chrome_profile_distinct/
+chrome_profile_distinct2/
+chrome_profile_distinct_test_subagent/
+chrome_profile_final/
+chrome_profile_random/
+chrome_profile_random2/
+edge_profile/
+edge_profile_distinct/
+
+# IDE configurations
+.vscode/
+.idea/
+
+# Local agents and temporary files
+.omg/
+.gemini/

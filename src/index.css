@@ -1,0 +1,125 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Default: Meridian Corporate Light theme */
+    --color-background: #F1F0EC;
+    --color-surface: #FFFFFF;
+    --color-border: #E2E5E4;
+    --color-text-primary: #0B2A3D;
+    --color-text-muted: #5C6B73;
+    --color-accent: #0E8A9A;
+    --color-success: #10b981;
+    --color-warning: #C65D00;
+    --color-danger: #ef4444;
+  }
+
+  .theme-meridian-light {
+    --color-background: #F1F0EC;
+    --color-surface: #FFFFFF;
+    --color-border: #E2E5E4;
+    --color-text-primary: #0B2A3D;
+    --color-text-muted: #5C6B73;
+    --color-accent: #0E8A9A;
+    --color-success: #10b981;
+    --color-warning: #C65D00;
+    --color-danger: #ef4444;
+  }
+
+  .theme-meridian-slate-dark {
+    --color-background: #0B2A3D;
+    --color-surface: #13313F;
+    --color-border: #1E3F51;
+    --color-text-primary: #FFFFFF;
+    --color-text-muted: #9CA9AF;
+    --color-accent: #2BC4D9;
+    --color-success: #10b981;
+    --color-warning: #F2994A;
+    --color-danger: #ef4444;
+  }
+
+  .theme-meridian-obsidian-dark {
+    --color-background: #0a0a0a;
+    --color-surface: #161616;
+    --color-border: #262626;
+    --color-text-primary: #ffffff;
+    --color-text-muted: #d4d4d4;
+    --color-accent: #2BC4D9;
+    --color-success: #10b981;
+    --color-warning: #F2994A;
+    --color-danger: #ef4444;
+  }
+
+  .theme-meridian-teal-dark {
+    --color-background: #061519;
+    --color-surface: #0d232a;
+    --color-border: #1b3c45;
+    --color-text-primary: #e6f4f8;
+    --color-text-muted: #a9ced9;
+    --color-accent: #2BC4D9;
+    --color-success: #10b981;
+    --color-warning: #F2994A;
+    --color-danger: #ef4444;
+  }
+
+  .theme-meridian-steel-dark {
+    --color-background: #111827;
+    --color-surface: #1f2937;
+    --color-border: #374151;
+    --color-text-primary: #f9fafb;
+    --color-text-muted: #cbd5e1;
+    --color-accent: #38bdf8;
+    --color-success: #10b981;
+    --color-warning: #F2994A;
+    --color-danger: #ef4444;
+  }
+
+  .theme-meridian-bronze-dark {
+    --color-background: #141210;
+    --color-surface: #1f1c18;
+    --color-border: #2e2a24;
+    --color-text-primary: #fcfaf7;
+    --color-text-muted: #d1c7bc;
+    --color-accent: #F2994A;
+    --color-success: #10b981;
+    --color-warning: #F2994A;
+    --color-danger: #ef4444;
+  }
+
+  body {
+    @apply bg-background text-text-primary font-sans antialiased transition-colors duration-300;
+  }
+}
+
+/* Material Symbols configuration */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+.filled-icon {
+  font-variation-settings: 'FILL' 1;
+}
+
+/* Custom scrollbars for Swiss grid layout */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
