@@ -1,24 +1,10 @@
-# <type>(<scope>): <subject>
-# Examples: feat(backend), fix(auth), test(e2e), docs(readme), chore(deps)
+# Commit Message Template
+# Format: [type]: <subject>
+# Types: feat, fix, refactor, perf, test, docs, chore
+# -------------------------------------------------------------
+# [type]: Short description of the changes (max 50 chars)
 #
-# ─── Types ────────────────────────────────────────────────
-# feat:     New feature
-# fix:      Bug fix
-# docs:     Documentation changes
-# style:    Formatting, missing semi colons, etc; no code change
-# refactor: Refactoring production code
-# test:     Adding missing tests, refactoring tests; no production code change
-# chore:    Build tasks, package manager configs, etc; no production code change
-#
-# ─── Subject Rules ────────────────────────────────────────
-# - Use imperative mood ("add", "change", not "added", "changed")
-# - Max 50 characters
-# - No period at the end
-#
-# ─── Body (Optional) ──────────────────────────────────────
-# Explain the *why* and *how* of the changes, not the *what*.
-# Max 72 characters per line.
-#
-# ─── Footer (Optional) ────────────────────────────────────
-# Reference issues, breakages, etc.
-# Example: Closes #123
+# Detailed explanation of what was changed and why.
+# 
+# Resolves: #<issue-number>
+# -------------------------------------------------------------
