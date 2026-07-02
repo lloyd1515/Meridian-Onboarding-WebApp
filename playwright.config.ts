@@ -1,3 +1,6 @@
+import dns from 'node:dns';
+dns.setDefaultResultOrder('ipv4first');
+
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({

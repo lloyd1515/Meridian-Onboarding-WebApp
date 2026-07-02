@@ -6,15 +6,15 @@ aliases: [CI/CD Guide, CI CD Rules, Pipeline Standards]
 
 # CI/CD Standards & Best Practices
 
-This guide outlines mandatory standards, rules, and best practices for configuring, modifying, and executing CI/CD workflows across the codebase. Following these guidelines ensures consistent builds, zero secret leaks, fast feedback loops, and 100% reliable GitHub Actions execution.
+This guide outlines mandatory standards, rules, and research-backed best practices for configuring, modifying, and executing CI/CD workflows across the codebase. Following these guidelines ensures consistent builds, zero secret leaks, fast feedback loops, and 100% reliable GitHub Actions execution.
 
 ---
 
 ## 1. Runtime & Dependency Standards
 
-1. **Strict Lockfile Synchronization**:
-   - Always run `npm install` after modifying `package.json` to ensure `package-lock.json` is synchronized.
-   - Workflows must use `npm ci` (not `npm install`) for deterministic, reproducible builds.
+1. **Strict Lockfile Synchronization (`npm ci`)**:
+   - Always run `npm install` after modifying `package.json` to ensure `package-lock.json` is synchronized before committing.
+   - Workflows must use `npm ci` (not `npm install`) for deterministic, reproducible builds. In CI, `npm ci` enforces strict lockfile adherence and fails immediately if `package.json` and `package-lock.json` are out of sync.
 
 2. **Target Runtimes**:
    - Frontend & Node tooling: **Node.js 22 LTS** (or Node.js 20 LTS minimum).
@@ -25,14 +25,19 @@ This guide outlines mandatory standards, rules, and best practices for configuri
 
 ---
 
-## 2. Environment & Host Binding Standards
+## 2. Environment & Network Host Binding Standards
 
-1. **Explicit IPv4 Loopback Binding**:
-   - Development servers and E2E test runners (Vite, Playwright, FastAPI) must explicitly bind to IPv4 `127.0.0.1` (e.g., `--host 127.0.0.1 --port 5173`).
-   - Never use un-qualified `localhost` in Playwright `baseURL` or `webServer` configs to avoid IPv6 (`::1`) resolution timeouts in CI.
+1. **Explicit IPv4 Loopback Binding (`127.0.0.1`)**:
+   - Development servers and E2E test runners (Vite, Playwright, FastAPI) must explicitly bind to IPv4 `127.0.0.1` (e.g. `--host 127.0.0.1 --port 5173`).
+   - In Node 18+, Node.js DNS resolution defaults to IPv6 (`::1`) before IPv4. If a local server binds only to IPv4 `127.0.0.1` while Playwright polls `http://localhost:5173`, connection fails with `ECONNREFUSED` or times out.
+   - To force Node.js test runners to prioritize IPv4 DNS resolution, set:
+     ```typescript
+     import dns from 'node:dns';
+     dns.setDefaultResultOrder('ipv4first');
+     ```
 
 2. **Environment File & Variable Fallbacks**:
-   - Workflows running Docker Compose builds must prepare a default `.env` file (e.g., `cp .env.example .env`) and supply fallback environment variables before building.
+   - Workflows running Docker Compose builds must prepare a default `.env` file (e.g. `cp .env.example .env`) and supply fallback environment variables before building.
    - Docker Compose services must define default variable fallbacks (e.g. `${POSTGRES_USER:-meridian_user}`).
 
 ---
@@ -45,8 +50,9 @@ This guide outlines mandatory standards, rules, and best practices for configuri
 2. **Generic Placeholder Rule**:
    - Configuration templates (`.env.example`) must use standardized generic placeholders (e.g., `your_postgres_password_here`, `change_me_in_production`).
 
-3. **Gitleaks Allowlist Policy**:
+3. **Gitleaks Allowlist & Full History Policy**:
    - Secret scanning steps must reference a project-level [.gitleaks.toml](file:///D:/ForJobs/Qubiz/.gitleaks.toml) configuration that explicitly allowlists sanitized `.env.example` placeholder patterns.
+   - Always use `fetch-depth: 0` in `actions/checkout@v4` so Gitleaks scans the complete commit history rather than just the shallow latest commit.
 
 ---
 
