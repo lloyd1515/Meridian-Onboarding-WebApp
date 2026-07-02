@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   agentic-quality-pipeline:
     name: Agentic Quality & E2E Pipeline
@@ -50,6 +54,20 @@ jobs:
         run: npx playwright test --project=chromium
         env:
           CI: true
+          PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:5173
+
+      - name: Prepare Environment File
+        run: |
+          if [ -f .env.example ]; then
+            cp .env.example .env
+          else
+            touch .env
+          fi
 
       - name: Multi-Stage Docker Build Verification
         run: docker compose build
+        env:
+          POSTGRES_USER: meridian_user
+          POSTGRES_PASSWORD: meridian_secure_pass
+          POSTGRES_DB: meridian_dev
+          JWT_SECRET: supersecretlocaltokenkey123!

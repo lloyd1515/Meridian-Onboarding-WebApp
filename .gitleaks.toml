@@ -1,0 +1,16 @@
+# Gitleaks configuration file
+[title]
+config = "Gitleaks Allowlist Configuration"
+
+[allowlist]
+description = "Allow example environment files and standardized placeholders"
+paths = [
+  '''^\.env\.example$''',
+  '''^\.env\.test$''',
+  '''^.*\.example$'''
+]
+regexes = [
+  '''your_[a-zA-Z0-9_]+_here''',
+  '''change_me_in_production''',
+  '''EXAMPLE_[A-Z0-9_]+'''
+]
