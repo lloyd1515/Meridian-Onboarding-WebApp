@@ -15,7 +15,6 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str, csrf_token: str):
     is_prod = settings.ENVIRONMENT == "production"
     
-    # 1. HttpOnly access token cookie
     response.set_cookie(
         key="access_token",
         value=access_token,
@@ -25,7 +24,6 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str, 
         path="/"
     )
     
-    # 2. HttpOnly refresh token cookie
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
@@ -35,7 +33,6 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str, 
         path="/"
     )
     
-    # 3. Non-HttpOnly csrf token cookie
     response.set_cookie(
         key="csrf_token",
         value=csrf_token,
@@ -45,9 +42,17 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str, 
         path="/"
     )
 
+    response.set_cookie(
+        key="__Host-csrf_token",
+        value=csrf_token,
+        httponly=False,
+        secure=is_prod,
+        samesite="strict",
+        path="/"
+    )
+
 @router.post("/login", response_model=EmployeeOut)
 async def login(response: Response, credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
-    # Retrieve user
     stmt = select(Employee).where(Employee.email == credentials.email)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
@@ -58,12 +63,10 @@ async def login(response: Response, credentials: LoginRequest, db: AsyncSession 
             detail="Invalid email or password"
         )
         
-    # Generate tokens
     access_token = create_access_token({"sub": user.email, "role": user.role})
     refresh_token = create_refresh_token({"sub": user.email})
     csrf_token = secrets.token_hex(32)
     
-    # Save Refresh Token in database for RTR
     db_refresh = RefreshToken(
         employee_id=user.id,
         token=refresh_token,
@@ -78,7 +81,6 @@ async def login(response: Response, credentials: LoginRequest, db: AsyncSession 
 
 @router.post("/refresh")
 async def refresh(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
-    # Read refresh_token from cookies
     ref_token = request.cookies.get("refresh_token")
     if not ref_token:
         raise HTTPException(
@@ -94,8 +96,6 @@ async def refresh(request: Request, response: Response, db: AsyncSession = Depen
         )
         
     email = payload["sub"]
-    
-    # Retrieve Employee
     stmt = select(Employee).where(Employee.email == email)
     emp_result = await db.execute(stmt)
     user = emp_result.scalar_one_or_none()
@@ -105,8 +105,7 @@ async def refresh(request: Request, response: Response, db: AsyncSession = Depen
             detail="User not found"
         )
         
-    # Look up refresh token in database
-    stmt = select(RefreshToken).where(RefreshToken.token == ref_token)
+    stmt = select(RefreshToken).where(RefreshToken.token == ref_token).with_for_update()
     rt_result = await db.execute(stmt)
     db_token = rt_result.scalar_one_or_none()
     
@@ -116,28 +115,24 @@ async def refresh(request: Request, response: Response, db: AsyncSession = Depen
             detail="Invalid refresh token"
         )
         
-    # RTR Abuse check: if refresh token was already used, revoke all user sessions
     if db_token.used:
-        # Revoke all tokens for this user
         await db.execute(delete(RefreshToken).where(RefreshToken.employee_id == user.id))
         await db.commit()
         response.delete_cookie("access_token", path="/")
         response.delete_cookie("refresh_token", path="/")
         response.delete_cookie("csrf_token", path="/")
+        response.delete_cookie("__Host-csrf_token", path="/")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token already used. Session compromised, all sessions revoked."
         )
         
-    # Mark token as used
     db_token.used = True
     
-    # Generate new pair
     new_access_token = create_access_token({"sub": user.email, "role": user.role})
     new_refresh_token = create_refresh_token({"sub": user.email})
     csrf_token = secrets.token_hex(32)
     
-    # Save new refresh token
     new_db_refresh = RefreshToken(
         employee_id=user.id,
         token=new_refresh_token,
@@ -152,8 +147,8 @@ async def refresh(request: Request, response: Response, db: AsyncSession = Depen
 
 @router.post("/logout")
 async def logout(response: Response, current_user: Employee = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    # Clear cookies
     response.delete_cookie("access_token", path="/")
     response.delete_cookie("refresh_token", path="/")
     response.delete_cookie("csrf_token", path="/")
+    response.delete_cookie("__Host-csrf_token", path="/")
     return {"status": "logged_out"}

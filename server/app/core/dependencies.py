@@ -6,6 +6,11 @@ from app.core.database import get_db
 from app.core.security import verify_token
 from app.models import Employee
 
+def get_effective_role(user: Employee) -> str:
+    today = datetime.date.today()
+    is_preboardee = (user.role == "preboardee") or (user.hire_date > today)
+    return "preboardee" if is_preboardee else user.role
+
 async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)) -> Employee:
     # Access token from cookies
     token = request.cookies.get("access_token")
@@ -17,7 +22,7 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
     
     # CSRF Verification for state-changing methods
     if request.method in ["POST", "PUT", "DELETE", "PATCH"]:
-        csrf_cookie = request.cookies.get("csrf_token")
+        csrf_cookie = request.cookies.get("__Host-csrf_token") or request.cookies.get("csrf_token")
         csrf_header = request.headers.get("X-CSRF-Token")
         if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
             raise HTTPException(
@@ -49,12 +54,7 @@ class RoleChecker:
         self.allowed_roles = allowed_roles
 
     def __call__(self, current_user: Employee = Depends(get_current_user)) -> Employee:
-        # Resolve user role dynamically based on hire date
-        today = datetime.date.today()
-        # Mark as preboardee if hire date is in the future
-        is_preboardee = (current_user.role == "preboardee") or (current_user.hire_date > today)
-        
-        effective_role = "preboardee" if is_preboardee else current_user.role
+        effective_role = get_effective_role(current_user)
         
         # Admin is hr_admin, standard employee is employee
         if effective_role not in self.allowed_roles:
