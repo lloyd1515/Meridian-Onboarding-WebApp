@@ -3,15 +3,19 @@
 - **Divide et Impera**: Split all complex tasks into smaller, manageable subtasks.
 - **Use Subagents**: For any substantial task, define and invoke specialized subagents (e.g. for reading files, writing code, executing tests, or doing research) to maintain context clarity and clean workspace separation.
 - **Test-Driven Alignment**: You are not allowed to modify tests unless you are adding new features. You must never modify existing tests to accommodate code changes; the application features must adapt to the tests, not the other way around.
-- **Obsidian Vault Organization**: Maintain the structured Obsidian vault located at `vault/` using the PARA method:
-  - `vault/01_Inbox/` for quick capture, ideas, temporary notes, and unclassified logs.
-  - `vault/10_Projects/` for active project blueprints and implementation plans.
-  - `vault/20_Resources/` for static guidelines, specifications, standards, and research.
+- **Obsidian Vault Organization & Schema**: Maintain the structured Obsidian vault located at `vault/` using the PARA method:
+  - `vault/01_Inbox/` for quick capture, ideas, temporary decision synthesis logs, and unclassified notes (e.g. `brutally_honest_pipeline_synthesis.md`).
+  - `vault/10_Projects/` for active project blueprints, architecture specs, and implementation plans (e.g. `production_agentic_pipeline_v2_1_blueprint.md`, `commit_creator_architecture_verifier_blueprint.md`, `cicd_architecture_verifier_blueprint.md`).
+  - `vault/20_Resources/` for static guidelines, specifications, security standards, and research:
+    - **Git Commit Standards**: `vault/20_Resources/Git Commit Standards.md` (Conventional Commits, 50/72 Rule, Atomic Commits).
+    - **CI/CD Standards**: `vault/20_Resources/CI CD Standards.md` (Deterministic `npm ci` lockfiles, IPv4 `127.0.0.1` host binding, Gitleaks allowlist, dev-dependencies inclusion).
+    - **Subagent Specifications**: `vault/20_Resources/commit_creator_and_architecture_verifier_subagents.md`, `vault/20_Resources/cicd_architecture_verifier_subagent.md`.
   - `vault/30_Archive/` for completed, inactive, or historical logs/notes.
-  - `vault/40_Canvas/` for visual charts, architectural maps, and canvas diagrams.
+  - `vault/40_Canvas/` for visual charts, architectural maps, and canvas diagrams (e.g. `subagent_architecture.canvas`).
+- **Obsidian Note Formatting Rules**: All markdown notes created or edited in `vault/` MUST include YAML frontmatter (`title`, `tags`, `aliases`, `type`), use internal wikilinks (`[[Note Name]]`), standard GitHub alerts (`> [!NOTE]`, `> [!IMPORTANT]`), and error-free Mermaid diagrams.
 - **Artifacts and Scratch Files**: Put all conceptual/technical notes, architectural blueprints, ideas, and generated code artifacts directly into the appropriate vault folder instead of cluttering the repository root. Any temporary scripts or data files should be kept in subdirectories of `vault/01_Inbox/` or similar.
 - **GitNexus Codebase Intelligence**: Use GitNexus for codebase exploration, structural context query, impact analysis, designing new features, debugging issues, and locating test targets. Avoid blind grep/search when GitNexus graph tools or CLI commands (`npx gitnexus query`, `npx gitnexus impact`, etc.) can provide structured code dependencies and blast-radius analysis.
-- **CI/CD & Commit Standards Alignment**: Always strictly follow the standards in `vault/20_Resources/Git Commit Standards.md` and `vault/20_Resources/CI CD Standards.md` when committing, configuring workflows, or updating dependencies.
+- **CI/CD & Commit Standards Alignment**: Always strictly follow the standards in `vault/20_Resources/Git Commit Standards.md` and `vault/20_Resources/CI CD Standards.md` when committing, configuring workflows, updating dependencies, or modifying test runners.
 
 
 <!-- gitnexus:start -->
