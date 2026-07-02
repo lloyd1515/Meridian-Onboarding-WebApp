@@ -1,9 +1,16 @@
-import localforage from 'localforage';
 import { z } from 'zod';
 
-const EMPLOYEES_KEY = 'meridian_employees';
-const CHECKLISTS_KEY = 'meridian_checklists';
-const SCHEDULER_KEY = 'meridian_scheduler';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+// Helper to get CSRF token from cookies
+function getCSRFToken(): string {
+  const match = document.cookie.match(/csrf_token=([^;]+)/);
+  return match ? match[1] : '';
+}
+
+const credentialsOptions = {
+  credentials: 'include' as const
+};
 
 // Zod Schemas for Data Integrity Validation
 export const EmployeeSchema = z.object({
@@ -32,234 +39,207 @@ export const TaskSchema = z.object({
 export const BackupSchema = z.object({
   version: z.string(),
   employees: z.array(EmployeeSchema),
-  checklists: z.record(z.string(), z.array(TaskSchema)), // Record<EmployeeId, Task[]>
-  scheduler: z.record(z.string(), z.array(z.string())),  // Record<DayIndex, EmployeeId[]>
+  checklists: z.record(z.string(), z.array(TaskSchema)),
+  scheduler: z.record(z.string(), z.array(z.string())),
 });
 
 export type Employee = z.infer<typeof EmployeeSchema>;
 export type Task = z.infer<typeof TaskSchema>;
 export type BackupData = z.infer<typeof BackupSchema>;
 
-localforage.config({
-  name: 'meridian_onboarding_db',
-  storeName: 'onboarding_data',
-});
-
-const DEPARTMENTS = ['Engineering', 'Sales', 'Marketing', 'HR', 'Finance'];
-
-// Mock Data Generator
-const generateMockEmployees = (): Employee[] => {
-  const list: Employee[] = [];
-  
-  list.push({
-    id: 'emp-admin',
-    name: 'Vlad HR Admin',
-    email: 'vlad.hr@meridian.com',
-    slackHandle: '@vlad.hr',
-    role: 'HR Manager',
-    department: 'HR',
-    hireDate: '2022-01-15',
-    buddyId: null,
-    hybridPreference: 'HIBRID',
-    assignedDesk: null,
-  });
-
-  list.push({
-    id: 'emp-buddy',
-    name: 'Alex Johnson (Buddy)',
-    email: 'alex.j@meridian.com',
-    slackHandle: '@alex.j',
-    role: 'Senior Software Engineer',
-    department: 'Engineering',
-    hireDate: '2023-06-10',
-    buddyId: null,
-    hybridPreference: 'HIBRID',
-    assignedDesk: 'desk-25',
-  });
-
-  list.push({
-    id: 'emp-newhire',
-    name: 'Jane Doe',
-    email: 'jane.doe@meridian.com',
-    slackHandle: '@jane.doe',
-    role: 'Junior Frontend Developer',
-    department: 'Engineering',
-    hireDate: '2026-07-01', // Future start date for pre-boarding simulation
-    buddyId: 'emp-buddy',
-    hybridPreference: 'BIROU',
-    assignedDesk: 'desk-24',
-  });
-
-  // Seed virtual employees for directory virtualization testing
-  for (let i = 4; i <= 210; i++) {
-    const isBuddy = i % 8 === 0;
-    list.push({
-      id: `emp-${i}`,
-      name: `Employee Name ${i}`,
-      email: `user.${i}@meridian.com`,
-      slackHandle: `@user.${i}`,
-      role: isBuddy ? 'Tech Buddy' : 'Software Specialist',
-      department: DEPARTMENTS[i % DEPARTMENTS.length],
-      hireDate: `2025-${(i % 12) + 1}-${(i % 28) + 1}`,
-      buddyId: isBuddy ? null : `emp-${i - (i % 8)}`,
-      hybridPreference: i % 3 === 0 ? 'BIROU' : i % 3 === 1 ? 'REMOTE' : 'HIBRID',
-      assignedDesk: null,
-    });
-  }
-  return list;
-};
-
-const generateMockTasks = (): Task[] => [
-  {
-    id: 'task-1',
-    title: 'Sign employment contract',
-    description: 'Complete electronic signing of your contract and annexes in the portal.',
-    status: 'completed',
-    dependencies: [],
-  },
-  {
-    id: 'task-2',
-    title: 'Configure work laptop',
-    description: 'Install operating system, VPN client, and core development tools.',
-    status: 'in_progress',
-    dependencies: ['task-1'],
-  },
-  {
-    id: 'task-3',
-    title: 'First meeting with Buddy',
-    description: 'Schedule a 30-minute Zoom or coffee meet to get to know each other.',
-    status: 'pending',
-    dependencies: ['task-2'],
-  },
-  {
-    id: 'task-4',
-    title: 'Install corporate security software',
-    description: 'Install the local security agent before accessing the internal network.',
-    status: 'blocked',
-    blockedBy: 'task-2',
-    dependencies: ['task-2', 'task-3'],
-  },
-  {
-    id: 'task-5',
-    title: 'Information security training',
-    description: 'Complete the mandatory interactive training on the HR platform.',
-    status: 'pending',
-    dependencies: ['task-1'],
-  },
-  {
-    id: 'task-60-1',
-    title: 'Meet the team members',
-    description: 'Schedule informal 1-on-1 chats with other engineers in your department.',
-    status: 'pending',
-    dependencies: [],
-  },
-  {
-    id: 'task-90-1',
-    title: 'Submit first Pull Request (PR)',
-    description: 'Fix a small bug or implement a minor change in the main codebase.',
-    status: 'pending',
-    dependencies: ['task-2'],
-  },
-  {
-    id: 'task-90-2',
-    title: 'Present a mini-demo',
-    description: 'Showcase your completed project during the weekly engineering sync.',
-    status: 'pending',
-    dependencies: ['task-90-1'],
-  },
+// Baseline scheduler date mapping helper
+const SCHEDULER_DATES = [
+  '2026-07-06', // Monday (0)
+  '2026-07-07', // Tuesday (1)
+  '2026-07-08', // Wednesday (2)
+  '2026-07-09', // Thursday (3)
+  '2026-07-10', // Friday (4)
 ];
 
-// Database Methods
+// Helper to convert snake_case keys from server to camelCase for frontend
+function mapEmployeeToFrontend(emp: any): Employee {
+  return {
+    id: emp.id,
+    name: emp.name,
+    email: emp.email,
+    slackHandle: emp.slack_handle,
+    role: emp.role === 'hr_admin' ? 'HR Manager' : (emp.role === 'buddy' ? 'Senior Software Engineer' : 'Software Specialist'),
+    department: emp.department,
+    hireDate: emp.hire_date,
+    buddyId: emp.buddy_id,
+    hybridPreference: emp.hybrid_preference || 'HIBRID',
+    assignedDesk: emp.assigned_desk,
+  };
+}
+
+// Helper to convert camelCase keys from frontend to snake_case for server
+function mapEmployeeToBackend(emp: Employee): any {
+  return {
+    id: emp.id,
+    name: emp.name,
+    email: emp.email,
+    slack_handle: emp.slackHandle,
+    role: emp.role === 'HR Manager' ? 'hr_admin' : (emp.role === 'Senior Software Engineer' ? 'buddy' : 'employee'),
+    department: emp.department,
+    hire_date: emp.hireDate,
+    buddy_id: emp.buddyId || null,
+    hybrid_preference: emp.hybridPreference,
+    assigned_desk: emp.assignedDesk || null,
+    hashed_password: '' // handled on server or in seed
+  };
+}
+
 export const initializeDb = async (forceReset = false): Promise<void> => {
-  const existingEmployees = await localforage.getItem(EMPLOYEES_KEY);
-  if (!existingEmployees || forceReset) {
-    console.log('Seeding initial database...');
-    const employees = generateMockEmployees();
-    const checklists: Record<string, Task[]> = {};
-    
-    employees.forEach(emp => {
-      checklists[emp.id] = generateMockTasks();
-    });
-
-    const scheduler: Record<string, string[]> = {
-      '0': ['emp-newhire', 'emp-buddy'],
-      '1': ['emp-newhire', 'emp-buddy'],
-      '2': ['emp-buddy'],
-      '3': ['emp-newhire', 'emp-buddy'],
-      '4': [],
-    };
-
-    for (let i = 4; i <= 210; i++) {
-      const empId = `emp-${i}`;
-      const days = ['0', '1', '2', '3', '4'];
-      const chosenDays: string[] = [];
-      while (chosenDays.length < 3) {
-        const randIdx = Math.floor(Math.random() * days.length);
-        const day = days[randIdx];
-        if (!chosenDays.includes(day)) {
-          chosenDays.push(day);
-        }
-      }
-      chosenDays.forEach(day => {
-        scheduler[day].push(empId);
-      });
-    }
-
-    await localforage.setItem(EMPLOYEES_KEY, employees);
-    await localforage.setItem(CHECKLISTS_KEY, checklists);
-    await localforage.setItem(SCHEDULER_KEY, scheduler);
-  }
+  // Database initialization is done backend-side via migrations and seed script
+  return Promise.resolve();
 };
 
 export const getEmployees = async (): Promise<Employee[]> => {
-  const data = await localforage.getItem<Employee[]>(EMPLOYEES_KEY);
-  return data || [];
+  try {
+    const res = await fetch(`${API_URL}/employees`, credentialsOptions);
+    if (!res.ok) {
+      if (res.status === 403) {
+        // Fallback: regular employee can fetch their own profile details
+        const meRes = await fetch(`${API_URL}/employees/me`, credentialsOptions);
+        if (meRes.ok) {
+          const me = await meRes.json();
+          return [mapEmployeeToFrontend(me)];
+        }
+      }
+      return [];
+    }
+    const data = await res.json();
+    return data.map(mapEmployeeToFrontend);
+  } catch (e) {
+    console.error('Error fetching employees:', e);
+    return [];
+  }
 };
 
 export const saveEmployee = async (employee: Employee): Promise<void> => {
-  const list = await getEmployees();
-  const index = list.findIndex(emp => emp.id === employee.id);
-  if (index >= 0) {
-    list[index] = employee;
-  } else {
-    list.push(employee);
-  }
-  await localforage.setItem(EMPLOYEES_KEY, list);
-  
-  const checklists = await getChecklists();
-  if (!checklists[employee.id]) {
-    checklists[employee.id] = generateMockTasks();
-    await localforage.setItem(CHECKLISTS_KEY, checklists);
+  const backendEmp = mapEmployeeToBackend(employee);
+  const res = await fetch(`${API_URL}/employees`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': getCSRFToken()
+    },
+    body: JSON.stringify(backendEmp),
+    ...credentialsOptions
+  });
+  if (!res.ok) {
+    const detail = await res.json();
+    throw new Error(detail?.detail || 'Failed to save employee');
   }
 };
 
 export const getChecklists = async (): Promise<Record<string, Task[]>> => {
-  const data = await localforage.getItem<Record<string, Task[]>>(CHECKLISTS_KEY);
-  return data || {};
+  // Not used globally in a full stack setup since checklists are queried per-employee,
+  // but to preserve mock type signature:
+  return {};
 };
 
 export const getEmployeeChecklist = async (employeeId: string): Promise<Task[]> => {
-  const checklists = await getChecklists();
-  return checklists[employeeId] || generateMockTasks();
+  try {
+    const res = await fetch(`${API_URL}/checklists/${employeeId}`, credentialsOptions);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.map((t: any) => ({
+      id: t.id,
+      title: t.title,
+      description: t.description || '',
+      status: t.status,
+      skipReason: t.skip_reason,
+      blockedBy: t.blocked_by,
+      dependencies: t.dependencies || [],
+    }));
+  } catch (e) {
+    console.error('Error fetching employee checklist:', e);
+    return [];
+  }
 };
 
 export const saveEmployeeChecklist = async (employeeId: string, tasks: Task[]): Promise<void> => {
-  const checklists = await getChecklists();
-  checklists[employeeId] = tasks;
-  await localforage.setItem(CHECKLISTS_KEY, checklists);
+  // Intelligently compare status updates to run backendcomplete/skip triggers
+  const current = await getEmployeeChecklist(employeeId);
+  for (const t of tasks) {
+    const prev = current.find(pt => pt.id === t.id);
+    if (prev) {
+      if (t.status === 'completed' && prev.status !== 'completed') {
+        await fetch(`${API_URL}/checklists/${t.id}/complete`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': getCSRFToken()
+          },
+          ...credentialsOptions
+        });
+      } else if (t.status === 'skipped' && prev.status !== 'skipped') {
+        await fetch(`${API_URL}/checklists/${t.id}/skip`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': getCSRFToken()
+          },
+          body: JSON.stringify({ skip_reason: t.skipReason || 'Skipped via checklist' }),
+          ...credentialsOptions
+        });
+      }
+    }
+  }
 };
 
-
 export const getScheduler = async (): Promise<Record<string, string[]>> => {
-  const data = await localforage.getItem<Record<string, string[]>>(SCHEDULER_KEY);
-  return data || { '0': [], '1': [], '2': [], '3': [], '4': [] };
+  const columns: Record<string, string[]> = {
+    '0': [], '1': [], '2': [], '3': [], '4': []
+  };
+  try {
+    const res = await fetch(`${API_URL}/scheduler`, credentialsOptions);
+    if (!res.ok) return columns;
+    
+    const entries = await res.json();
+    entries.forEach((e: any) => {
+      if (e.status === 'office') {
+        const dayIdx = SCHEDULER_DATES.indexOf(e.date);
+        if (dayIdx !== -1) {
+          columns[dayIdx.toString()].push(e.employee_id);
+        }
+      }
+    });
+  } catch (e) {
+    console.error('Error fetching scheduler:', e);
+  }
+  return columns;
 };
 
 export const saveScheduler = async (scheduler: Record<string, string[]>): Promise<void> => {
-  await localforage.setItem(SCHEDULER_KEY, scheduler);
+  // Sync the scheduler with the backend
+  // Find all employees to identify their assignments
+  const employees = await getEmployees();
+  for (const emp of employees) {
+    const bookings = SCHEDULER_DATES.map((dateStr, idx) => {
+      const isOffice = (scheduler[idx.toString()] || []).includes(emp.id);
+      return {
+        date: dateStr,
+        status: isOffice ? 'office' : 'remote'
+      };
+    });
+    
+    await fetch(`${API_URL}/scheduler`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': getCSRFToken()
+      },
+      body: JSON.stringify({
+        employee_id: emp.id,
+        bookings: bookings
+      }),
+      ...credentialsOptions
+    });
+  }
 };
 
-// Import / Export operations with Ghost Buddy Validation
 export interface ValidationResult {
   success: boolean;
   errors: string[];
@@ -275,45 +255,129 @@ export const validateAndRestoreBackup = async (jsonString: string): Promise<Vali
 
   try {
     const rawData = JSON.parse(jsonString);
-    const parsedData = BackupSchema.parse(rawData);
     
-    // Ghost Buddy Audits: find employees pointing to a missing buddy ID
-    const employeeIds = new Set(parsedData.employees.map(emp => emp.id));
-    
-    parsedData.employees.forEach(emp => {
-      if (emp.buddyId && !employeeIds.has(emp.buddyId)) {
-        result.warnings.push(
-          `⚠️ Employee [${emp.name}] is associated with a missing Buddy ID ([${emp.buddyId}]). Manual pairing required.`
-        );
+    // Convert keys to backend structure
+    const backendEmployees = (rawData.employees || []).map((e: any) => ({
+      id: e.id,
+      name: e.name,
+      email: e.email,
+      slack_handle: e.slackHandle,
+      role: e.role === 'HR Manager' ? 'hr_admin' : (e.role === 'Senior Software Engineer' ? 'buddy' : 'employee'),
+      department: e.department,
+      hire_date: e.hireDate,
+      buddy_id: e.buddyId || null,
+      hybrid_preference: e.hybridPreference || 'HIBRID',
+      assigned_desk: e.assignedDesk || null,
+      hashed_password: e.hashed_password || '$argon2id$v=19$m=65536,t=3,p=2$supersecurepasswordplaceholder'
+    }));
+
+    const backendTasks: any[] = [];
+    const checklists = rawData.checklists || {};
+    Object.keys(checklists).forEach(empId => {
+      (checklists[empId] || []).forEach((t: any) => {
+        backendTasks.push({
+          id: t.id,
+          employee_id: empId,
+          title: t.title,
+          description: t.description || '',
+          status: t.status,
+          skip_reason: t.skipReason || null,
+          blocked_by: t.blockedBy || null,
+          dependencies: t.dependencies || []
+        });
+      });
+    });
+
+    const backendSchedules: any[] = [];
+    const scheduler = rawData.scheduler || {};
+    Object.keys(scheduler).forEach(dayIdxStr => {
+      const dayIdx = parseInt(dayIdxStr, 10);
+      const dateStr = SCHEDULER_DATES[dayIdx];
+      if (dateStr) {
+        (scheduler[dayIdxStr] || []).forEach((empId: string) => {
+          backendSchedules.push({
+            id: crypto.randomUUID ? crypto.randomUUID() : 'gen-uuid-' + Math.random(),
+            employee_id: empId,
+            date: dateStr,
+            status: 'office'
+          });
+        });
       }
     });
 
-    await localforage.setItem(EMPLOYEES_KEY, parsedData.employees);
-    await localforage.setItem(CHECKLISTS_KEY, parsedData.checklists);
-    await localforage.setItem(SCHEDULER_KEY, parsedData.scheduler);
-    
-    result.success = true;
-  } catch (err: any) {
-    if (err instanceof z.ZodError) {
-      result.errors = err.errors.map(e => `[Field: ${e.path.join('.')}] - ${e.message}`);
+    const payload = {
+      version: "1.0",
+      exported_at: new Date().toISOString(),
+      employees: backendEmployees,
+      checklist_tasks: backendTasks,
+      schedule_entries: backendSchedules
+    };
+
+    const res = await fetch(`${API_URL}/backup/restore`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': getCSRFToken()
+      },
+      body: JSON.stringify(payload),
+      ...credentialsOptions
+    });
+
+    if (res.ok) {
+      result.success = true;
     } else {
-      result.errors = [err?.message || 'Invalid JSON format or structure'];
+      const detail = await res.json();
+      result.errors = [detail?.detail || 'Database restore failed'];
     }
+  } catch (err: any) {
+    result.errors = [err?.message || 'Invalid JSON format or structure'];
   }
 
   return result;
 };
 
 export const generateBackupExport = async (): Promise<string> => {
-  const employees = await getEmployees();
-  const checklists = await getChecklists();
-  const scheduler = await getScheduler();
+  const res = await fetch(`${API_URL}/backup/export`, credentialsOptions);
+  if (!res.ok) throw new Error('Failed to export backup');
+  
+  const data = await res.json();
+  
+  // Format backend export data into frontend backup format
+  const employees = data.employees.map(mapEmployeeToFrontend);
+  
+  const checklists: Record<string, Task[]> = {};
+  data.checklist_tasks.forEach((t: any) => {
+    if (!checklists[t.employee_id]) {
+      checklists[t.employee_id] = [];
+    }
+    checklists[t.employee_id].push({
+      id: t.id,
+      title: t.title,
+      description: t.description || '',
+      status: t.status,
+      skipReason: t.skip_reason,
+      blockedBy: t.blocked_by,
+      dependencies: t.dependencies || []
+    });
+  });
 
-  const backup: BackupData = {
+  const scheduler: Record<string, string[]> = {
+    '0': [], '1': [], '2': [], '3': [], '4': []
+  };
+  data.schedule_entries.forEach((s: any) => {
+    if (s.status === 'office') {
+      const dayIdx = SCHEDULER_DATES.indexOf(s.date);
+      if (dayIdx !== -1) {
+        scheduler[dayIdx.toString()].push(s.employee_id);
+      }
+    }
+  });
+
+  const backup = {
     version: '2.1',
     employees,
     checklists,
-    scheduler,
+    scheduler
   };
 
   return JSON.stringify(backup, null, 2);

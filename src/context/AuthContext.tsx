@@ -1,7 +1,16 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Employee, getEmployees, initializeDb } from '../services/db';
-import { signSession, verifySession, freezeSession } from '../services/sessionSecurity';
+import { Employee } from '../services/db';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+function getCSRFToken(): string {
+  const match = document.cookie.match(/csrf_token=([^;]+)/);
+  return match ? match[1] : '';
+}
+
+const credentialsOptions = {
+  credentials: 'include' as const
+};
 
 interface AuthContextType {
   currentUser: Employee | null;
@@ -22,45 +31,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [simulationDate, setSimulationDateState] = useState<string>('2026-06-25');
   const [isPreboarding, setIsPreboarding] = useState<boolean>(true);
 
-  // Sync session on mount
-  useEffect(() => {
-    const initSession = async () => {
-      await initializeDb();
-      const stored = sessionStorage.getItem('meridian_secure_session');
-      let sessionLoaded = false;
-
-      if (stored) {
-        try {
-          const secureSession = JSON.parse(stored);
-          const isValid = await verifySession(secureSession);
-          if (isValid) {
-            const sessionPayload = secureSession.payload;
-            const employees = await getEmployees();
-            const matchingUser = employees.find(
-              emp => emp.email.toLowerCase() === sessionPayload.email.toLowerCase()
-            );
-
-            if (matchingUser) {
-              const userRole = (matchingUser.id === 'emp-admin' || matchingUser.email.toLowerCase() === 'vlad.hr@meridian.com') 
-                ? 'admin' 
-                : 'employee';
-              setRoleState(userRole);
-              setCurrentUser(freezeSession(matchingUser));
-              sessionLoaded = true;
-            } else {
-              console.warn('Session user not found in database. Clearing session...');
-              sessionStorage.removeItem('meridian_secure_session');
-            }
-          }
-        } catch (e) {
-          console.error('Session verification failed, falling back to default login...', e);
-          sessionStorage.removeItem('meridian_secure_session');
-        }
+  // Sync session on mount via GET /employees/me
+  const syncSession = async () => {
+    try {
+      const res = await fetch(`${API_URL}/employees/me`, credentialsOptions);
+      if (res.ok) {
+        const me = await res.json();
+        const mappedUser: Employee = {
+          id: me.id,
+          name: me.name,
+          email: me.email,
+          slackHandle: me.slack_handle,
+          role: me.role === 'hr_admin' ? 'HR Manager' : (me.role === 'buddy' ? 'Senior Software Engineer' : 'Software Specialist'),
+          department: me.department,
+          hireDate: me.hire_date,
+          buddyId: me.buddy_id,
+          hybridPreference: me.hybrid_preference || 'HIBRID',
+          assignedDesk: me.assigned_desk,
+        };
+        const mappedRole = me.role === 'hr_admin' ? 'admin' : 'employee';
+        setRoleState(mappedRole);
+        setCurrentUser(mappedUser);
+      } else {
+        setCurrentUser(null);
       }
+    } catch (e) {
+      console.error('Session sync failed:', e);
+      setCurrentUser(null);
+    }
+  };
 
-    };
-
-    initSession();
+  useEffect(() => {
+    syncSession();
   }, []);
 
   // Sync preboarding status with simulation/hire date
@@ -76,29 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const setRole = async (newRole: 'employee' | 'admin') => {
     const email = newRole === 'admin' ? 'vlad.hr@meridian.com' : 'jane.doe@meridian.com';
-    const employees = await getEmployees();
-    const matchingUser = employees.find(emp => emp.email.toLowerCase() === email.toLowerCase());
-
-    if (matchingUser) {
-      setRoleState(newRole);
-      setCurrentUser(freezeSession(matchingUser));
-
-      const payload = {
-        email: matchingUser.email,
-        role: newRole,
-        timestamp: Date.now(),
-        expiry: Date.now() + 60 * 60 * 1000 // 1 hour
-      };
-
-      try {
-        const secureSession = await signSession(payload);
-        sessionStorage.setItem('meridian_secure_session', JSON.stringify(secureSession));
-      } catch (e) {
-        console.error('Failed to sign session when changing role:', e);
-      }
-    } else {
-      console.error(`User for role ${newRole} (${email}) not found in database.`);
-    }
+    await login(email);
   };
 
   const setSimulationDate = (date: string) => {
@@ -106,40 +86,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const login = async (email: string): Promise<boolean> => {
-    const employees = await getEmployees();
-    const matchingUser = employees.find(emp => emp.email.toLowerCase() === email.toLowerCase());
+    try {
+      const res = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: email,
+          password: 'password123'
+        }),
+        ...credentialsOptions
+      });
 
-    if (!matchingUser) {
+      if (res.ok) {
+        await syncSession();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error('Login failed:', e);
       return false;
     }
-
-    const mappedRole = (matchingUser.id === 'emp-admin' || matchingUser.email.toLowerCase() === 'vlad.hr@meridian.com') 
-      ? 'admin' 
-      : 'employee';
-
-    setRoleState(mappedRole);
-    setCurrentUser(freezeSession(matchingUser));
-
-    const payload = {
-      email: matchingUser.email,
-      role: mappedRole,
-      timestamp: Date.now(),
-      expiry: Date.now() + 60 * 60 * 1000 // 1 hour
-    };
-
-    try {
-      const secureSession = await signSession(payload);
-      sessionStorage.setItem('meridian_secure_session', JSON.stringify(secureSession));
-    } catch (e) {
-      console.error('Failed to sign session during login:', e);
-    }
-
-    return true;
   };
 
-  const logout = () => {
-    sessionStorage.removeItem('meridian_secure_session');
-    setCurrentUser(null);
+  const logout = async () => {
+    try {
+      await fetch(`${API_URL}/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'X-CSRF-Token': getCSRFToken()
+        },
+        ...credentialsOptions
+      });
+    } catch (e) {
+      console.error('Logout failed:', e);
+    } finally {
+      setCurrentUser(null);
+    }
   };
 
   return (
