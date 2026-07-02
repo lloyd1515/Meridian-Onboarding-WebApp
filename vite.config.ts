@@ -12,5 +12,12 @@ export default defineConfig({
     alias: {
       '@': resolve(__dirname, './src')
     }
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    passWithNoTests: true,
+    include: ['src/**/*.{test,spec}.{js,ts,jsx,tsx}'],
+    exclude: ['**/node_modules/**', '**/pw_*/**', '**/chrome_*/**', '**/edge_*/**']
   }
-})
+} as any)
