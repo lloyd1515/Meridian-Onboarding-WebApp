@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useDb } from '../../context/DbContext';
 import { getEmployeeChecklist, saveEmployeeChecklist, Task, Employee } from '../../services/db';
@@ -15,6 +15,7 @@ export const OnboardingChecklist: React.FC = () => {
   const [showParticlesForId, setShowParticlesForId] = useState<string | null>(null);
   const [srAnnouncement, setSrAnnouncement] = useState<string>('');
   const [copiedSlack, setCopiedSlack] = useState<boolean>(false);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 
   const defaultMilestones: Task[] = [
@@ -248,17 +249,34 @@ export const OnboardingChecklist: React.FC = () => {
 
   const assignedBuddy = currentUser?.buddyId ? employees.find(e => e.id === currentUser.buddyId) : null;
 
-  const handleCopySlackIntro = () => {
-    const msg = `Hi ${assignedBuddy?.slackHandle || '@buddy'}! I'm ${currentUser?.name || 'a new hire'} at Meridian. Looking forward to our onboarding meeting!`;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(msg);
+  // Pure Fabrication / Information Expert: Formats & sanitizes Slack intro message
+  const formatSlackIntroMessage = (slackHandle?: string, userName?: string): string => {
+    const cleanHandle = (slackHandle || 'buddy').replace(/^@+/, '').replace(/[@<|>\x00-\x1F\x7F-\x9F]/g, '');
+    const cleanName = (userName || 'a new hire').replace(/[@<|>\x00-\x1F\x7F-\x9F]/g, '');
+    return `Hi @${cleanHandle}! I'm ${cleanName} at Meridian. Looking forward to our onboarding meeting!`;
+  };
+
+  const handleCopySlackIntro = async () => {
+    const msg = formatSlackIntroMessage(assignedBuddy?.slackHandle, currentUser?.name);
+    
+    if (copyTimeoutRef.current) {
+      clearTimeout(copyTimeoutRef.current);
     }
-    setCopiedSlack(true);
-    setSrAnnouncement("Slack message template copied to clipboard.");
-    setTimeout(() => {
-      setCopiedSlack(false);
-      setSrAnnouncement("");
-    }, 3000);
+
+    try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error('Clipboard API unsupported');
+      }
+      await navigator.clipboard.writeText(msg);
+      setCopiedSlack(true);
+      setSrAnnouncement("Slack message template copied to clipboard.");
+      copyTimeoutRef.current = setTimeout(() => {
+        setCopiedSlack(false);
+        setSrAnnouncement("");
+      }, 3000);
+    } catch (err) {
+      setSrAnnouncement("Failed to copy Slack message template to clipboard.");
+    }
   };
 
   return (

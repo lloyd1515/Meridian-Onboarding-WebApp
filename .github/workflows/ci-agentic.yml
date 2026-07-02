@@ -1,0 +1,54 @@
+name: Production E2E Agentic Quality Pipeline v2.1
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  agentic-quality-pipeline:
+    name: Agentic Quality & E2E Pipeline
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js 22 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install Node & Python Dependencies
+        run: |
+          npm ci
+          if [ -f server/requirements.txt ]; then pip install -r server/requirements.txt; fi
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Static Type & Compilation Gate
+        run: npx tsc --noEmit
+
+      - name: Frontend Vitest Suite
+        run: npm test -- --run
+
+      - name: Backend Pytest Suite
+        run: cd server && pytest
+
+      - name: Playwright E2E & Accessibility Audit
+        run: npx playwright test --project=chromium
+        env:
+          CI: true
+
+      - name: Multi-Stage Docker Build Verification
+        run: docker compose build

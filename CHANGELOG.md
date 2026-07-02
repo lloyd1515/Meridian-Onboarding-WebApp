@@ -6,6 +6,17 @@ Deoarece utilitarul `git` nu este instalat sau adăugat în `%PATH%` pe sistemul
 
 ## 📌 Commit Log
 
+### [Commit 12] - Production E2E Agentic Pipeline v2.1, Subagent Swarm Hooks & GitHub Actions CI/CD
+* **Fișiere create/modificate**:
+  * [ci-agentic.yml](file:///D:/ForJobs/Qubiz/.github/workflows/ci-agentic.yml) - Creat workflow-ul GitHub Actions de producție pentru Node 22 LTS, Python 3.12, Vitest, Pytest, scanare de securitate Gitleaks și verificare Docker Compose.
+  * [shared_context.jsonl](file:///D:/ForJobs/Qubiz/.omg/state/shared_context.jsonl) - Inițializat motorul de log-uri namespaced append-only pentru starea concurentă a agenților.
+  * [run_agentic_pipeline.js](file:///D:/ForJobs/Qubiz/scripts/run_agentic_pipeline.js) & [subagent_swarm_orchestrator.js](file:///D:/ForJobs/Qubiz/scripts/subagent_swarm_orchestrator.js) - Implementat scriptul principal de execuție a pipeline-ului și orchestratorul de subagenți.
+  * [production_agentic_pipeline_v2_1_blueprint.md](file:///D:/ForJobs/Qubiz/vault/10_Projects/production_agentic_pipeline_v2_1_blueprint.md) & [brutally_honest_pipeline_synthesis.md](file:///D:/ForJobs/Qubiz/vault/01_Inbox/brutally_honest_pipeline_synthesis.md) - Salvat blueprint-ul master v2.1 și sinteza comparativă în Obsidian Vault.
+
+### [Commit 11] - Hardened Slack Intro Clipboard & Security Control Token Sanitization
+* **Fișiere modificate**:
+  * [OnboardingChecklist.tsx](file:///D:/ForJobs/Qubiz/src/features/onboarding/OnboardingChecklist.tsx) - Adăugat tratament de eroare `async/try-catch` pe `handleCopySlackIntro`, igienizat caracterele de control și mentiunile Slack (`/[@<|>\x00-\x1F\x7F-\x9F]/g`) și implementat curățarea temporizatorilor `copyTimeoutRef` pentru eliminarea race condition-urilor.
+
 ### [Commit 10] - Buddy Profile Card, Google Meet Link & Accessible Slack Copy
 * **Fișiere modificate**:
   * [OnboardingChecklist.tsx](file:///D:/ForJobs/Qubiz/src/features/onboarding/OnboardingChecklist.tsx) - Adăugat widget profil Buddy asignat în header-ul checklist-ului, link placeholder Google Meet (`meet.google.com/meridian-buddy-coffee`) pe Task 3 și suport de accesibilitate cu `aria-live="polite"` pentru copierea șablonului de introducere pe Slack.
