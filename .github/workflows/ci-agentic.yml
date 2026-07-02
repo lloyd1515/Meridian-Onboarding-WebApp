@@ -32,6 +32,7 @@ jobs:
         run: |
           npm ci
           if [ -f server/requirements.txt ]; then pip install -r server/requirements.txt; fi
+          if [ -f server/requirements-dev.txt ]; then pip install -r server/requirements-dev.txt; fi
 
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium

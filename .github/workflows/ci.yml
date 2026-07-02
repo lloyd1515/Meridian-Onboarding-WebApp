@@ -49,6 +49,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           if [ -f server/requirements.txt ]; then pip install -r server/requirements.txt; fi
+          if [ -f server/requirements-dev.txt ]; then pip install -r server/requirements-dev.txt; fi
 
       - name: Run Pytest Test Suite
         run: |
