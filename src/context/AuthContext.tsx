@@ -1,12 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Employee } from '../services/db';
+import { Employee, customFetch, getCSRFToken } from '../services/db';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8090';
-
-function getCSRFToken(): string {
-  const match = document.cookie.match(/csrf_token=([^;]+)/);
-  return match ? match[1] : '';
-}
 
 const credentialsOptions = {
   credentials: 'include' as const
@@ -16,7 +11,7 @@ interface AuthContextType {
   currentUser: Employee | null;
   role: 'employee' | 'admin';
   isPreboarding: boolean;
-  simulationDate: string; // YYYY-MM-DD
+  simulationDate: string;
   setRole: (role: 'employee' | 'admin') => void | Promise<void>;
   setSimulationDate: (date: string) => void;
   login: (email: string) => Promise<boolean>;
@@ -31,10 +26,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [simulationDate, setSimulationDateState] = useState<string>('2026-06-25');
   const [isPreboarding, setIsPreboarding] = useState<boolean>(true);
 
-  // Sync session on mount via GET /employees/me
   const syncSession = async () => {
     try {
-      const res = await fetch(`${API_URL}/employees/me`, credentialsOptions);
+      const res = await customFetch(`${API_URL}/employees/me`, credentialsOptions);
       if (res.ok) {
         const me = await res.json();
         const mappedUser: Employee = {
@@ -65,7 +59,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     syncSession();
   }, []);
 
-  // Sync preboarding status with simulation/hire date
   useEffect(() => {
     if (currentUser) {
       const hireTime = new Date(currentUser.hireDate).getTime();
@@ -87,10 +80,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string): Promise<boolean> => {
     try {
-      const res = await fetch(`${API_URL}/auth/login`, {
+      const res = await customFetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': getCSRFToken()
         },
         body: JSON.stringify({
           email: email,
@@ -112,7 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      await fetch(`${API_URL}/auth/logout`, {
+      await customFetch(`${API_URL}/auth/logout`, {
         method: 'POST',
         headers: {
           'X-CSRF-Token': getCSRFToken()

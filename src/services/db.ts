@@ -3,13 +3,59 @@ import { z } from 'zod';
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8090';
 
 // Helper to get CSRF token from cookies
-function getCSRFToken(): string {
-  const match = document.cookie.match(/csrf_token=([^;]+)/);
+export function getCSRFToken(): string {
+  const match = document.cookie.match(/__Host-csrf_token=([^;]+)/);
   return match ? match[1] : '';
 }
 
 const credentialsOptions = {
   credentials: 'include' as const
+};
+
+let refreshPromise: Promise<boolean> | null = null;
+
+export const customFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  const urlString = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+  const isRefreshRequest = urlString.includes('/auth/refresh');
+
+  const response = await fetch(input, init);
+
+  if (response.status === 401 && !isRefreshRequest) {
+    if (!refreshPromise) {
+      refreshPromise = (async () => {
+        try {
+          const refreshRes = await fetch(`${API_URL}/auth/refresh`, {
+            method: 'POST',
+            headers: {
+              'X-CSRF-Token': getCSRFToken()
+            },
+            ...credentialsOptions
+          });
+          return refreshRes.ok;
+        } catch (e) {
+          console.error('Error during token refresh:', e);
+          return false;
+        } finally {
+          refreshPromise = null;
+        }
+      })();
+    }
+
+    const refreshSuccess = await refreshPromise;
+
+    if (refreshSuccess) {
+      let updatedInit = init || {};
+      const method = (updatedInit.method || 'GET').toUpperCase();
+      const headersObj = new Headers(updatedInit.headers);
+      if (['POST', 'PUT', 'DELETE'].includes(method)) {
+        headersObj.set('X-CSRF-Token', getCSRFToken());
+      }
+      updatedInit = { ...updatedInit, headers: headersObj };
+      return fetch(input, updatedInit);
+    }
+  }
+
+  return response;
 };
 
 // Zod Schemas for Data Integrity Validation
@@ -85,22 +131,20 @@ function mapEmployeeToBackend(emp: Employee): any {
     buddy_id: emp.buddyId || null,
     hybrid_preference: emp.hybridPreference,
     assigned_desk: emp.assignedDesk || null,
-    hashed_password: '' // handled on server or in seed
+    hashed_password: ''
   };
 }
 
 export const initializeDb = async (forceReset = false): Promise<void> => {
-  // Database initialization is done backend-side via migrations and seed script
   return Promise.resolve();
 };
 
 export const getEmployees = async (): Promise<Employee[]> => {
   try {
-    const res = await fetch(`${API_URL}/employees`, credentialsOptions);
+    const res = await customFetch(`${API_URL}/employees`, credentialsOptions);
     if (!res.ok) {
       if (res.status === 403) {
-        // Fallback: regular employee can fetch their own profile details
-        const meRes = await fetch(`${API_URL}/employees/me`, credentialsOptions);
+        const meRes = await customFetch(`${API_URL}/employees/me`, credentialsOptions);
         if (meRes.ok) {
           const me = await meRes.json();
           return [mapEmployeeToFrontend(me)];
@@ -118,7 +162,7 @@ export const getEmployees = async (): Promise<Employee[]> => {
 
 export const saveEmployee = async (employee: Employee): Promise<void> => {
   const backendEmp = mapEmployeeToBackend(employee);
-  const res = await fetch(`${API_URL}/employees`, {
+  const res = await customFetch(`${API_URL}/employees`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -134,14 +178,12 @@ export const saveEmployee = async (employee: Employee): Promise<void> => {
 };
 
 export const getChecklists = async (): Promise<Record<string, Task[]>> => {
-  // Not used globally in a full stack setup since checklists are queried per-employee,
-  // but to preserve mock type signature:
   return {};
 };
 
 export const getEmployeeChecklist = async (employeeId: string): Promise<Task[]> => {
   try {
-    const res = await fetch(`${API_URL}/checklists/${employeeId}`, credentialsOptions);
+    const res = await customFetch(`${API_URL}/checklists/${employeeId}`, credentialsOptions);
     if (!res.ok) return [];
     const data = await res.json();
     return data.map((t: any) => ({
@@ -160,13 +202,12 @@ export const getEmployeeChecklist = async (employeeId: string): Promise<Task[]> 
 };
 
 export const saveEmployeeChecklist = async (employeeId: string, tasks: Task[]): Promise<void> => {
-  // Intelligently compare status updates to run backendcomplete/skip triggers
   const current = await getEmployeeChecklist(employeeId);
   for (const t of tasks) {
     const prev = current.find(pt => pt.id === t.id);
     if (prev) {
       if (t.status === 'completed' && prev.status !== 'completed') {
-        await fetch(`${API_URL}/checklists/${t.id}/complete`, {
+        await customFetch(`${API_URL}/checklists/${t.id}/complete`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -175,7 +216,7 @@ export const saveEmployeeChecklist = async (employeeId: string, tasks: Task[]): 
           ...credentialsOptions
         });
       } else if (t.status === 'skipped' && prev.status !== 'skipped') {
-        await fetch(`${API_URL}/checklists/${t.id}/skip`, {
+        await customFetch(`${API_URL}/checklists/${t.id}/skip`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -194,7 +235,7 @@ export const getScheduler = async (): Promise<Record<string, string[]>> => {
     '0': [], '1': [], '2': [], '3': [], '4': []
   };
   try {
-    const res = await fetch(`${API_URL}/scheduler`, credentialsOptions);
+    const res = await customFetch(`${API_URL}/scheduler`, credentialsOptions);
     if (!res.ok) return columns;
     
     const entries = await res.json();
@@ -213,8 +254,6 @@ export const getScheduler = async (): Promise<Record<string, string[]>> => {
 };
 
 export const saveScheduler = async (scheduler: Record<string, string[]>): Promise<void> => {
-  // Sync the scheduler with the backend
-  // Find all employees to identify their assignments
   const employees = await getEmployees();
   for (const emp of employees) {
     const bookings = SCHEDULER_DATES.map((dateStr, idx) => {
@@ -225,7 +264,7 @@ export const saveScheduler = async (scheduler: Record<string, string[]>): Promis
       };
     });
     
-    await fetch(`${API_URL}/scheduler`, {
+    await customFetch(`${API_URL}/scheduler`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -256,7 +295,6 @@ export const validateAndRestoreBackup = async (jsonString: string): Promise<Vali
   try {
     const rawData = JSON.parse(jsonString);
     
-    // Convert keys to backend structure
     const backendEmployees = (rawData.employees || []).map((e: any) => ({
       id: e.id,
       name: e.name,
@@ -313,7 +351,7 @@ export const validateAndRestoreBackup = async (jsonString: string): Promise<Vali
       schedule_entries: backendSchedules
     };
 
-    const res = await fetch(`${API_URL}/backup/restore`, {
+    const res = await customFetch(`${API_URL}/backup/restore`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -337,12 +375,10 @@ export const validateAndRestoreBackup = async (jsonString: string): Promise<Vali
 };
 
 export const generateBackupExport = async (): Promise<string> => {
-  const res = await fetch(`${API_URL}/backup/export`, credentialsOptions);
+  const res = await customFetch(`${API_URL}/backup/export`, credentialsOptions);
   if (!res.ok) throw new Error('Failed to export backup');
   
   const data = await res.json();
-  
-  // Format backend export data into frontend backup format
   const employees = data.employees.map(mapEmployeeToFrontend);
   
   const checklists: Record<string, Task[]> = {};
