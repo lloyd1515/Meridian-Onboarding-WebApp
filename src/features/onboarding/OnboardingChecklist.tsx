@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { getEmployeeChecklist, saveEmployeeChecklist, Task } from '../../services/db';
+import { useDb } from '../../context/DbContext';
+import { getEmployeeChecklist, saveEmployeeChecklist, Task, Employee } from '../../services/db';
 
 export const OnboardingChecklist: React.FC = () => {
   const { currentUser } = useAuth();
+  const { employees } = useDb();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [activeSkipTaskId, setActiveSkipTaskId] = useState<string | null>(null);
@@ -11,6 +13,9 @@ export const OnboardingChecklist: React.FC = () => {
   
   const [justUnlockedTaskId, setJustUnlockedTaskId] = useState<string | null>(null);
   const [showParticlesForId, setShowParticlesForId] = useState<string | null>(null);
+  const [srAnnouncement, setSrAnnouncement] = useState<string>('');
+  const [copiedSlack, setCopiedSlack] = useState<boolean>(false);
+
 
   const defaultMilestones: Task[] = [
     {
@@ -241,8 +246,27 @@ export const OnboardingChecklist: React.FC = () => {
     );
   };
 
+  const assignedBuddy = currentUser?.buddyId ? employees.find(e => e.id === currentUser.buddyId) : null;
+
+  const handleCopySlackIntro = () => {
+    const msg = `Hi ${assignedBuddy?.slackHandle || '@buddy'}! I'm ${currentUser?.name || 'a new hire'} at Meridian. Looking forward to our onboarding meeting!`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(msg);
+    }
+    setCopiedSlack(true);
+    setSrAnnouncement("Slack message template copied to clipboard.");
+    setTimeout(() => {
+      setCopiedSlack(false);
+      setSrAnnouncement("");
+    }, 3000);
+  };
+
   return (
     <>
+      <div aria-live="polite" className="sr-only">
+        {srAnnouncement}
+      </div>
+
       <div className="w-full max-w-[800px] mx-auto flex flex-col gap-8">
       <style>{`
         @keyframes particleOut {
@@ -287,6 +311,32 @@ export const OnboardingChecklist: React.FC = () => {
         </button>
       </div>
 
+      {assignedBuddy && (
+        <div className="bg-gradient-to-r from-slate-900 to-[#0B2A3D] text-white p-6 rounded-2xl shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center border border-white/20 shrink-0">
+              <span className="material-symbols-outlined text-white text-[24px]">handshake</span>
+            </div>
+            <div>
+              <span className="font-mono text-[10px] uppercase text-accent tracking-widest block font-bold">ASSIGNED TECH BUDDY</span>
+              <h3 className="text-h3 font-bold text-white mt-0.5">{assignedBuddy.name}</h3>
+              <p className="text-xs text-slate-300 font-mono">{assignedBuddy.role} • {assignedBuddy.department}</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleCopySlackIntro}
+              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full text-xs font-mono text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+              aria-label="Copy Slack intro template to clipboard"
+            >
+              <span className="material-symbols-outlined text-[14px]">content_copy</span>
+              <span>{copiedSlack ? 'Copied to Clipboard!' : 'Copy Slack Template'}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-center bg-surface p-6 border border-border rounded-2xl shadow-sm">
         <div className="flex flex-col">
           <span className="font-mono text-[10px] text-text-muted uppercase tracking-[2px]">ONBOARDING PROGRESS</span>
@@ -296,6 +346,7 @@ export const OnboardingChecklist: React.FC = () => {
           <div className="h-full bg-accent transition-all duration-500 rounded-full" style={{ width: `${progressPercent}%` }}></div>
         </div>
       </div>
+
 
       <div className="relative pl-8 mt-4">
         
@@ -434,6 +485,32 @@ export const OnboardingChecklist: React.FC = () => {
                         </a>
                       </div>
                     )}
+
+                    {task.id === 'task-3' && (
+                      <div className="flex flex-col gap-2 p-3 bg-[#F8FAFC] border border-border rounded-xl">
+                        <span className="font-mono text-[10px] leading-none tracking-[2px] uppercase block text-text-muted">Video Meeting Link</span>
+                        <div className="flex items-center justify-between gap-2">
+                          <a 
+                            href="https://meet.google.com/meridian-buddy-coffee"
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()} 
+                            className="text-accent underline font-mono text-xs font-bold hover:text-text-primary transition-colors inline-flex items-center gap-1"
+                          >
+                            <span>meet.google.com/meridian-buddy-coffee</span>
+                            <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                          </a>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleCopySlackIntro(); }}
+                            className="px-2.5 py-1 text-[11px] font-mono border border-[#0B2A3D] text-[#0B2A3D] hover:bg-[#0B2A3D] hover:text-white rounded-lg transition-colors cursor-pointer"
+                          >
+                            {copiedSlack ? 'Copied!' : 'Copy Slack Intro'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
 
                     {!isCompleted && !isBlocked && incompleteDeps.length > 0 && (
                       <div className="bg-background p-3 border border-border rounded-xl font-mono text-[11px] leading-tight flex items-start gap-2 text-warning">

@@ -18,8 +18,12 @@ export const HybridScheduler: React.FC = () => {
   const [draggedEmpId, setDraggedEmpId] = useState<string | null>(null);
   const [sourceColIdx, setSourceColIdx] = useState<string | null>(null);
 
+  const [isDirty, setIsDirty] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
+  const [buddyWarnings, setBuddyWarnings] = useState<string[]>([]);
+
   useEffect(() => {
-    if (scheduler) {
+    if (scheduler && !isDirty) {
       setColumns(scheduler);
     }
   }, [scheduler]);
@@ -28,7 +32,7 @@ export const HybridScheduler: React.FC = () => {
     e.preventDefault();
   };
 
-  const handleDrop = async (colIdx: string) => {
+  const handleDrop = (colIdx: string) => {
     if (!draggedEmpId) return;
 
     const targetList = [...(columns[colIdx] || [])];
@@ -64,22 +68,62 @@ export const HybridScheduler: React.FC = () => {
     updatedCols[colIdx] = [...targetList, draggedEmpId];
 
     setColumns(updatedCols);
-    await updateScheduler(updatedCols);
+    setIsDirty(true);
+    setSaveStatus(null);
 
     setDraggedEmpId(null);
     setSourceColIdx(null);
   };
 
-  const handleDropUnassigned = async () => {
+  const handleDropUnassigned = () => {
     if (!draggedEmpId) return;
     if (sourceColIdx !== null) {
       const updatedCols = { ...columns };
       updatedCols[sourceColIdx] = (updatedCols[sourceColIdx] || []).filter(id => id !== draggedEmpId);
       setColumns(updatedCols);
-      await updateScheduler(updatedCols);
+      setIsDirty(true);
+      setSaveStatus(null);
     }
     setDraggedEmpId(null);
     setSourceColIdx(null);
+  };
+
+  const handleSaveChanges = async () => {
+    // Buddy co-presence validation
+    const warnings: string[] = [];
+    employees.forEach(emp => {
+      if (emp.buddyId) {
+        const empOfficeDays = Object.keys(columns).filter(day => (columns[day] || []).includes(emp.id));
+        if (empOfficeDays.length > 0) {
+          const buddyOfficeDays = Object.keys(columns).filter(day => (columns[day] || []).includes(emp.buddyId!));
+          const overlap = empOfficeDays.filter(day => buddyOfficeDays.includes(day));
+          if (overlap.length === 0) {
+            const buddyEmp = employees.find(b => b.id === emp.buddyId);
+            warnings.push(`⚠️ Buddy Co-presence Warning: ${emp.name} has no overlapping office days with Buddy (${buddyEmp?.name || 'Buddy'}).`);
+          }
+        }
+      }
+    });
+
+    setBuddyWarnings(warnings);
+
+    try {
+      await updateScheduler(columns);
+      setIsDirty(false);
+      setSaveStatus("✅ Schedule saved successfully!");
+      setTimeout(() => setSaveStatus(null), 3000);
+    } catch (e: any) {
+      setSaveStatus(`❌ Save failed: ${e.message || e}`);
+    }
+  };
+
+  const handleDiscardChanges = () => {
+    if (scheduler) {
+      setColumns(scheduler);
+    }
+    setIsDirty(false);
+    setBuddyWarnings([]);
+    setSaveStatus(null);
   };
 
   const getScheduledDetails = (empId: string, colIdx: string): ScheduledEmployee | null => {
@@ -124,12 +168,62 @@ export const HybridScheduler: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 font-sans">
-      <div className="border border-border bg-surface p-6 rounded-2xl shadow-sm">
-        <h2 className="text-h1 font-bold text-[#0B2A3D] mb-1">Team Hybrid Scheduler</h2>
-        <p className="text-body-sm text-text-muted">
-          Drag and drop employees to schedule office presence days and monitor physical capacity.
-        </p>
+      <div className="border border-border bg-surface p-6 rounded-2xl shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h2 className="text-h1 font-bold text-[#0B2A3D] mb-1">Team Hybrid Scheduler</h2>
+          <p className="text-body-sm text-text-muted">
+            Drag and drop employees to schedule office presence days and monitor physical capacity.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {isDirty && (
+            <span className="font-mono text-xs bg-amber-100 text-amber-800 px-3 py-1 rounded-full border border-amber-300 font-bold animate-pulse">
+              ● Unsaved Changes
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={handleDiscardChanges}
+            disabled={!isDirty}
+            className={`px-4 py-2 text-xs font-medium font-sans border rounded-full transition-colors cursor-pointer ${
+              isDirty 
+                ? 'border-border text-text-primary hover:bg-slate-100' 
+                : 'border-slate-200 text-slate-400 cursor-not-allowed'
+            }`}
+          >
+            Discard
+          </button>
+          <button
+            type="button"
+            onClick={handleSaveChanges}
+            disabled={!isDirty}
+            className={`flex items-center gap-2 px-5 py-2 text-xs font-medium font-sans rounded-full shadow-sm transition-colors cursor-pointer ${
+              isDirty 
+                ? 'bg-[#0B2A3D] hover:bg-[#13313F] text-white' 
+                : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+            }`}
+          >
+            <span>Save Changes</span>
+            <span className="material-symbols-outlined text-[16px]">save</span>
+          </button>
+        </div>
       </div>
+
+      {saveStatus && (
+        <div className="p-3.5 bg-slate-50 border border-border text-text-primary rounded-xl font-mono text-xs shadow-sm">
+          {saveStatus}
+        </div>
+      )}
+
+      {buddyWarnings.length > 0 && (
+        <div className="flex flex-col gap-1 p-4 bg-amber-50 border border-amber-300 text-amber-900 rounded-xl font-mono text-xs shadow-sm">
+          {buddyWarnings.map((w, idx) => (
+            <span key={idx}>{w}</span>
+          ))}
+        </div>
+      )}
+
 
       <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
         <div

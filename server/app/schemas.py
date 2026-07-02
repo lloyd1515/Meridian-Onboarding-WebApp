@@ -7,6 +7,17 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
+class SignupRequest(BaseModel):
+    name: str
+    email: str
+    slack_handle: str
+    role: Optional[str] = "employee"
+    department: str
+    hire_date: date
+    password: str
+    hybrid_preference: Optional[str] = "HIBRID"
+
+
 class EmployeeOut(BaseModel):
     id: UUID
     name: str

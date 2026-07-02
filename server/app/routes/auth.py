@@ -5,10 +5,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from app.core.database import get_db
 from app.core.config import settings
-from app.core.security import verify_password, create_access_token, create_refresh_token, verify_token
-from app.models import Employee, RefreshToken
-from app.schemas import LoginRequest, EmployeeOut
+from app.core.security import verify_password, hash_password, create_access_token, create_refresh_token, verify_token
+from app.models import Employee, RefreshToken, ChecklistTask
+from app.schemas import LoginRequest, SignupRequest, EmployeeOut
 from app.core.dependencies import get_current_user
+
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -78,6 +79,87 @@ async def login(response: Response, credentials: LoginRequest, db: AsyncSession 
     
     set_auth_cookies(response, access_token, refresh_token, csrf_token)
     return user
+
+@router.post("/signup", response_model=EmployeeOut)
+async def signup(response: Response, payload: SignupRequest, db: AsyncSession = Depends(get_db)):
+    stmt = select(Employee).where(Employee.email == payload.email)
+    result = await db.execute(stmt)
+    existing = result.scalar_one_or_none()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email address already registered"
+        )
+
+    # Pre-boarding determination: if hire date is in future, set role to preboardee
+    assigned_role = payload.role or "employee"
+    if payload.hire_date > date.today():
+        assigned_role = "preboardee"
+
+    hashed = hash_password(payload.password)
+    user = Employee(
+        name=payload.name,
+        email=payload.email,
+        slack_handle=payload.slack_handle,
+        role=assigned_role,
+        department=payload.department,
+        hire_date=payload.hire_date,
+        hybrid_preference=payload.hybrid_preference or "HIBRID",
+        hashed_password=hashed,
+    )
+    db.add(user)
+    await db.flush()
+
+    # Seed default onboarding tasks
+    tasks_data = [
+        {"title": "Sign employment contract", "description": "Complete electronic signing of your contract and annexes in the portal.", "status": "completed", "deps": []},
+        {"title": "Configure work laptop", "description": "Install operating system, VPN client, and core development tools.", "status": "in_progress", "deps": []},
+        {"title": "First meeting with Buddy", "description": "Schedule a 30-minute Zoom or coffee meet to get to know each other.", "status": "pending", "deps": [1]},
+        {"title": "Install corporate security software", "description": "Install the local security agent before accessing the internal network.", "status": "blocked", "deps": [1, 2]},
+        {"title": "Information security training", "description": "Complete the mandatory interactive training on the HR platform.", "status": "pending", "deps": [0]},
+        {"title": "Meet the team members", "description": "Schedule informal 1-on-1 chats with other engineers in your department.", "status": "pending", "deps": []},
+        {"title": "Submit first Pull Request (PR)", "description": "Fix a small bug or implement a minor change in the main codebase.", "status": "pending", "deps": [1]},
+        {"title": "Present a mini-demo", "description": "Showcase your completed project during the weekly engineering sync.", "status": "pending", "deps": [6]}
+    ]
+
+    created_tasks = []
+    for td in tasks_data:
+        task = ChecklistTask(
+            employee_id=user.id,
+            title=td["title"],
+            description=td["description"],
+            status=td["status"],
+            dependencies=[]
+        )
+        db.add(task)
+        await db.flush()
+        created_tasks.append(task)
+
+    # Link dependencies UUIDs
+    for idx, td in enumerate(tasks_data):
+        dep_indices = td["deps"]
+        if dep_indices:
+            dep_uuids = [str(created_tasks[d_idx].id) for d_idx in dep_indices]
+            created_tasks[idx].dependencies = dep_uuids
+            if idx == 3: # Install corporate security software blocked by laptop task
+                created_tasks[idx].blocked_by = created_tasks[1].id
+
+    access_token = create_access_token({"sub": user.email, "role": user.role})
+    refresh_token = create_refresh_token({"sub": user.email})
+    csrf_token = secrets.token_hex(32)
+
+    db_refresh = RefreshToken(
+        employee_id=user.id,
+        token=refresh_token,
+        used=False,
+        expires_at=date.today() + timedelta(days=7)
+    )
+    db.add(db_refresh)
+    await db.commit()
+
+    set_auth_cookies(response, access_token, refresh_token, csrf_token)
+    return user
+
 
 @router.post("/refresh")
 async def refresh(request: Request, response: Response, db: AsyncSession = Depends(get_db)):

@@ -46,48 +46,47 @@ export const LoginPage: React.FC = () => {
     e.preventDefault();
     setError('');
 
-    const newEmployee = {
-      id: 'emp-' + Date.now(),
-      name: signupName,
-      email: signupEmail,
-      slackHandle: signupSlackHandle,
-      role: signupRole,
-      department: signupDepartment,
-      hybridPreference: signupHybridPreference as 'BIROU' | 'REMOTE' | 'HIBRID',
-      hireDate: signupHireDate,
-      buddyId: 'emp-buddy',
-      assignedDesk: null,
-    };
-
-    const validationResult = EmployeeSchema.safeParse(newEmployee);
-    if (!validationResult.success) {
-      const formattedErrors = validationResult.error.errors.map(err => err.message).join(' | ');
-      setError(`Validation failed: ${formattedErrors}`);
+    if (!signupEmail.endsWith('@meridian.com')) {
+      setError('Email must end with @meridian.com');
       return;
     }
 
     try {
-      const employees = await getEmployees();
-      const isTaken = employees.some(
-        emp => emp.email.toLowerCase() === signupEmail.toLowerCase()
-      );
-      if (isTaken) {
-        setError("Email address already registered.");
+      const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8090';
+      const res = await fetch(`${API_URL}/auth/signup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: signupName,
+          email: signupEmail,
+          slack_handle: signupSlackHandle,
+          role: signupRole || 'employee',
+          department: signupDepartment,
+          hire_date: signupHireDate,
+          password: 'password123',
+          hybrid_preference: signupHybridPreference,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        setError(errData.detail || 'Signup failed');
         return;
       }
-
-      await saveEmployee(newEmployee);
 
       const success = await login(signupEmail);
       if (success) {
         navigate('/dashboard');
       } else {
-        setError("Account created, but automatic sign-in failed.");
+        setError('Account created, but automatic sign-in failed.');
       }
     } catch (err: any) {
       setError(`Signup failed: ${err.message || err}`);
     }
   };
+
 
   const renderSelectors = () => (
     <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
@@ -381,13 +380,36 @@ export const LoginPage: React.FC = () => {
 
       <div className="mt-8 pt-6 border-t border-border text-center">
         <span className="text-caption text-text-muted block font-medium">
-          Default Simulator Logins:
+          Quick Test Logins (Select Role):
         </span>
-        <div className="mt-2 flex flex-col gap-1 text-caption text-text-primary font-mono bg-slate-50 p-3 rounded-xl border border-border text-left">
-          <span>Employee: <button type="button" onClick={() => setEmail('jane.doe@meridian.com')} className="underline hover:text-accent font-bold cursor-pointer">jane.doe@meridian.com</button></span>
-          <span>HR Admin: <button type="button" onClick={() => setEmail('vlad.hr@meridian.com')} className="underline hover:text-accent font-bold cursor-pointer">vlad.hr@meridian.com</button></span>
+        <div className="mt-2 flex flex-col gap-2 text-caption text-text-primary font-mono bg-slate-50 p-3 rounded-xl border border-border text-left">
+          <button
+            type="button"
+            onClick={() => setEmail('jane.doe@meridian.com')}
+            className="flex items-center justify-between p-2 rounded bg-white border border-border hover:bg-slate-100 cursor-pointer transition-colors"
+          >
+            <span>👤 Preboardee / New Hire</span>
+            <span className="font-bold text-accent">jane.doe@meridian.com</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setEmail('alex.j@meridian.com')}
+            className="flex items-center justify-between p-2 rounded bg-white border border-border hover:bg-slate-100 cursor-pointer transition-colors"
+          >
+            <span>🤝 Buddy / Engineer</span>
+            <span className="font-bold text-accent">alex.j@meridian.com</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setEmail('vlad.hr@meridian.com')}
+            className="flex items-center justify-between p-2 rounded bg-white border border-border hover:bg-slate-100 cursor-pointer transition-colors"
+          >
+            <span>👑 HR Admin</span>
+            <span className="font-bold text-accent">vlad.hr@meridian.com</span>
+          </button>
         </div>
       </div>
+
     </div>
   );
 

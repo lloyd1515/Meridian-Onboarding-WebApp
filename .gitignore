@@ -11,15 +11,10 @@ chrome_err.log
 .env
 
 # Browser profiles
-chrome_profile/
-chrome_profile_distinct/
-chrome_profile_distinct2/
-chrome_profile_distinct_test_subagent/
-chrome_profile_final/
-chrome_profile_random/
-chrome_profile_random2/
-edge_profile/
-edge_profile_distinct/
+chrome_profile*/
+edge_profile*/
+pw_chrome_dev/
+
 
 # IDE configurations
 .vscode/

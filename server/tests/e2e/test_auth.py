@@ -43,6 +43,24 @@ async def test_auth_flow(client, db_session):
     assert logout_resp.status_code == 200
     assert "access_token" not in client.cookies or client.cookies.get("access_token") == ""
 
+@pytest.mark.asyncio
+async def test_signup_flow(client, db_session):
+    signup_data = {
+        "name": "Signup User",
+        "email": "signup.user@meridian.com",
+        "slack_handle": "@signup.user",
+        "role": "employee",
+        "department": "Engineering",
+        "hire_date": "2025-05-01",
+        "password": "password123",
+        "hybrid_preference": "HIBRID"
+    }
+    response = await client.post("/auth/signup", json=signup_data)
+    assert response.status_code == 200
+    assert response.json()["email"] == "signup.user@meridian.com"
+    assert "access_token" in response.cookies
+
 def datetime_date_helper():
     import datetime
     return datetime.date(2025, 1, 1)
+
