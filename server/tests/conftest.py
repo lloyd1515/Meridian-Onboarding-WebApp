@@ -32,17 +32,16 @@ async def test_engine():
         poolclass=StaticPool,
         future=True,
     )
-    
-    # Create tables
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-        
     yield engine
     await engine.dispose()
 
 @pytest_asyncio.fixture
 async def db_session(test_engine):
-    """Provide a transactional database session for tests, rolling back changes."""
+    """Provide a clean database session for tests by recreating tables."""
+    async with test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
+        
     async_session = sessionmaker(
         bind=test_engine,
         class_=AsyncSession,
@@ -50,11 +49,8 @@ async def db_session(test_engine):
     )
     
     async with async_session() as session:
-        # Start a transaction block
-        async with session.begin():
-            yield session
-            # Transaction automatically rolls back when this block exits due to rollback context
-            await session.rollback()
+        yield session
+        await session.close()
 
 @pytest_asyncio.fixture
 async def client(db_session):

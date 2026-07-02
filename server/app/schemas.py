@@ -44,6 +44,7 @@ class ScheduleBooking(BaseModel):
 
 class SchedulerSubmit(BaseModel):
     bookings: list[ScheduleBooking]
+    employee_id: Optional[UUID] = None
 
 class ScheduleEntryOut(BaseModel):
     id: UUID

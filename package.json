@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.101.2",
     "@tanstack/react-virtual": "^3.5.0",
     "localforage": "^1.10.0",
     "lucide-react": "^0.395.0",

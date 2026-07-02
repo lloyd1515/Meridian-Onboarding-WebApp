@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, ForeignKey, Date, JSON, UniqueConstraint, Index, UUID
+from sqlalchemy import Column, String, ForeignKey, Date, JSON, UniqueConstraint, Index, UUID, Boolean
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -64,3 +64,13 @@ class ScheduleEntry(Base):
         Index("idx_schedule_entries_employee_id", "employee_id"),
         Index("idx_schedule_entries_date", "date"),
     )
+
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    employee_id = Column(UUID(as_uuid=True), ForeignKey("employees.id", ondelete="CASCADE"), nullable=False)
+    token = Column(String, unique=True, index=True, nullable=False)
+    used = Column(Boolean, nullable=False, default=False)
+    expires_at = Column(Date, nullable=False)
+

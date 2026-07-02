@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8090';
 
 // Helper to get CSRF token from cookies
 function getCSRFToken(): string {
