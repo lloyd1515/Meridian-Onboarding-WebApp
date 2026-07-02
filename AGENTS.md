@@ -16,6 +16,17 @@
 - **Artifacts and Scratch Files**: Put all conceptual/technical notes, architectural blueprints, ideas, and generated code artifacts directly into the appropriate vault folder instead of cluttering the repository root. Any temporary scripts or data files should be kept in subdirectories of `vault/01_Inbox/` or similar.
 - **GitNexus Codebase Intelligence**: Use GitNexus for codebase exploration, structural context query, impact analysis, designing new features, debugging issues, and locating test targets. Avoid blind grep/search when GitNexus graph tools or CLI commands (`npx gitnexus query`, `npx gitnexus impact`, etc.) can provide structured code dependencies and blast-radius analysis.
 - **CI/CD & Commit Standards Alignment**: Always strictly follow the standards in `vault/20_Resources/Git Commit Standards.md` and `vault/20_Resources/CI CD Standards.md` when committing, configuring workflows, updating dependencies, or modifying test runners.
+- **Swarm Coordinator Isolation Invariant (CRITICAL)**: When executing the `/subagent-swarm` command or any multi-agent quality verification, the main agent must operate **strictly** as an orchestrator/coordinator. The main agent is explicitly FORBIDDEN from:
+  1. Executing local shell/terminal commands directly (e.g. running mock orchestrator scripts, NPM test commands, or Python test commands in the main context).
+  2. Calling ChromeDevTools MCP or GitNexus MCP tools directly in its main context.
+  All work must be delegated to the 5 specialized subagents:
+  - `swarm-compiler-verifier` (Role: "Compilation Verifier"): Exclusive runner of builds, lints, and static type checks.
+  - `swarm-security-auditor` (Role: "Security Auditor"): Runs security scans (no auto-commit allowed).
+  - `swarm-design-reviewer` (Role: "SOLID & GRASP Architect"): Audits AST coupling and OO design patterns.
+  - `swarm-browser-tester` (Role: "E2E Browser Tester"): Exclusive runner of Edge/Chrome browser CDP testing on port 9222.
+  - `safe-fix-proposer` (Role: "Safe Fix Proposer"): Orchestrates fixes, capped at 3 self-repair attempts before human escalation.
+  The coordinator must define and invoke each subagent, monitor progress, and verify their outputs in the shared state file.
+
 
 
 <!-- gitnexus:start -->
