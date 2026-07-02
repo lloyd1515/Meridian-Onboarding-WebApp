@@ -11,6 +11,7 @@
   - `vault/40_Canvas/` for visual charts, architectural maps, and canvas diagrams.
 - **Artifacts and Scratch Files**: Put all conceptual/technical notes, architectural blueprints, ideas, and generated code artifacts directly into the appropriate vault folder instead of cluttering the repository root. Any temporary scripts or data files should be kept in subdirectories of `vault/01_Inbox/` or similar.
 - **GitNexus Codebase Intelligence**: Use GitNexus for codebase exploration, structural context query, impact analysis, designing new features, debugging issues, and locating test targets. Avoid blind grep/search when GitNexus graph tools or CLI commands (`npx gitnexus query`, `npx gitnexus impact`, etc.) can provide structured code dependencies and blast-radius analysis.
+- **CI/CD & Commit Standards Alignment**: Always strictly follow the standards in `vault/20_Resources/Git Commit Standards.md` and `vault/20_Resources/CI CD Standards.md` when committing, configuring workflows, or updating dependencies.
 
 
 <!-- gitnexus:start -->
