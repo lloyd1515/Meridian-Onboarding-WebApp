@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     RATE_LIMIT_WINDOW_SECONDS: int = Field(default=60)
 
     # CORS
-    BACKEND_CORS_ORIGINS: List[str] = Field(default=[])
+    BACKEND_CORS_ORIGINS: List[str] = Field(default=["http://localhost:5173", "http://127.0.0.1:5173"])
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod

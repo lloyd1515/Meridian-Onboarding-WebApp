@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Employee } from '../services/db';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8090';
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8090';
 
 function getCSRFToken(): string {
   const match = document.cookie.match(/csrf_token=([^;]+)/);
