@@ -41,11 +41,33 @@ async def submit_schedules(
     db: AsyncSession = Depends(get_db),
     current_user: Employee = Depends(get_current_user)
 ):
-    # 1. Fetch current employee's schedule rows with pessimistic lock to prevent concurrent bypasses
+    target_employee_id = current_user.id
+    target_user = current_user
+    
+    if payload.employee_id and payload.employee_id != current_user.id:
+        import datetime
+        today = datetime.date.today()
+        is_admin = current_user.role == "hr_admin" and current_user.hire_date <= today
+        if not is_admin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: only hr_admin can submit schedules for other employees"
+            )
+        target_employee_id = payload.employee_id
+        stmt_user = select(Employee).where(Employee.id == target_employee_id)
+        res_user = await db.execute(stmt_user)
+        target_user = res_user.scalar_one_or_none()
+        if not target_user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Target employee not found"
+            )
+
+    # 1. Fetch target employee's schedule rows with pessimistic lock to prevent concurrent bypasses
     # We sort by date/ID to prevent deadlock risk
     stmt = (
         select(ScheduleEntry)
-        .where(ScheduleEntry.employee_id == current_user.id)
+        .where(ScheduleEntry.employee_id == target_employee_id)
         .order_by(ScheduleEntry.date.asc())
         .with_for_update()
     )
@@ -88,7 +110,7 @@ async def submit_schedules(
                 and_(
                     ScheduleEntry.date == d,
                     ScheduleEntry.status == "office",
-                    ScheduleEntry.employee_id != current_user.id
+                    ScheduleEntry.employee_id != target_employee_id
                 )
             )
             count = await db.scalar(stmt_count) or 0
@@ -101,11 +123,11 @@ async def submit_schedules(
                 warnings.append(f"Office occupancy on {d} is high ({count + 1} people).")
 
     # 3. Check buddy co-presence rule warning
-    if current_user.buddy_id:
+    if target_user.buddy_id:
         # Find buddy office days
         stmt_buddy = select(ScheduleEntry.date).where(
             and_(
-                ScheduleEntry.employee_id == current_user.buddy_id,
+                ScheduleEntry.employee_id == target_user.buddy_id,
                 ScheduleEntry.status == "office"
             )
         )
@@ -122,7 +144,7 @@ async def submit_schedules(
         await db.execute(
             delete(ScheduleEntry).where(
                 and_(
-                    ScheduleEntry.employee_id == current_user.id,
+                    ScheduleEntry.employee_id == target_employee_id,
                     ScheduleEntry.date.in_(dates_to_delete)
                 )
             )
@@ -132,7 +154,7 @@ async def submit_schedules(
             # Only add if status is not empty/none
             if b.status in ["office", "remote"]:
                 db.add(ScheduleEntry(
-                    employee_id=current_user.id,
+                    employee_id=target_employee_id,
                     date=b.date,
                     status=b.status
                 ))
