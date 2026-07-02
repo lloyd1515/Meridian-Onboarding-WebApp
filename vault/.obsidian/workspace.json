@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "01_Inbox/Todo List.md",
+                "file": "10_Projects/cicd_architecture_verifier_blueprint.md",
                 "mode": "preview",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Todo List"
+              "title": "cicd_architecture_verifier_blueprint"
             }
           }
         ]
@@ -183,12 +183,25 @@
   },
   "active": "2af8f717df3a7232",
   "lastOpenFiles": [
+    "20_Resources/CI CD Standards.md",
+    "10_Projects/production_agentic_pipeline_v2_1_blueprint.md",
+    "20_Resources/cicd_architecture_verifier_subagent.md",
+    "10_Projects/cicd_architecture_verifier_blueprint.md",
+    "01_Inbox/brutally_honest_pipeline_synthesis.md",
+    "10_Projects/full_e2e_subagent_pipeline_blueprint.md",
+    "01_Inbox/full_e2e_subagent_pipeline_blueprint.md",
+    "01_Inbox/subagent_hooks_architectural_review.md",
+    "20_Resources/e2e_subagent_swarm_specifications.md",
+    "10_Projects/commit_vulnerability_scanner_blueprint.md",
+    "20_Resources/commit_creator_and_architecture_verifier_subagents.md",
+    "10_Projects/commit_creator_architecture_verifier_blueprint.md",
+    "20_Resources/commit_security_checker_subagent.md",
+    "01_Inbox/Todo List.md",
     "20_Resources/Edge_ChromeDevTools_MCP_Setup.md",
     "40_Canvas/msedge_verification_checklist.png",
     "01_Inbox/playwright_edge_live.cjs",
     "01_Inbox/edge_live_driver.cjs",
     "01_Inbox/To Add.md",
-    "01_Inbox/Todo List.md",
     "01_Inbox/run_visible_edge_demo.cjs",
     "01_Inbox/run_visible_edge_demo.js",
     "01_Inbox/Commit History Evaluation.md",
@@ -208,19 +221,6 @@
     "step by step plan/2. Hybrid Scheduler.md",
     "step by step plan/1. Onboarding Checklist.md",
     "step by step plan",
-    "Interactive Manual Testing Guide.md",
-    "Full Stack Execution Plan.md",
-    "Execution Plan.md",
-    "Architecture Audit Review.md",
-    "20_Resources/Git Commit Standards.md",
-    "10_Projects/Docker & Backend Migration Plan.md",
-    "To Add.md",
-    "40_Canvas/subagent_architecture.canvas",
-    "20_Resources/Interactive Manual Testing Guide.md",
-    "20_Resources/Architecture Audit Review.md",
-    "20_Resources/task/TaskDescription.md",
-    "10_Projects/Adversarial Frontend Audit.md",
-    "10_Projects/6. Adversarial Audit & Refinements.md",
-    "10_Projects/5. Architecture and Deployment.md"
+    "40_Canvas/subagent_architecture.canvas"
   ]
 }
