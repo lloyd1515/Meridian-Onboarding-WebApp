@@ -17,7 +17,7 @@ async def get_me(current_user: Employee = Depends(get_current_user)):
 @router.get("", response_model=List[EmployeeOut])
 async def list_employees(
     db: AsyncSession = Depends(get_db),
-    current_user: Employee = Depends(RoleChecker(["hr_admin"]))
+    current_user: Employee = Depends(RoleChecker(["hr_admin", "employee"]))
 ):
     stmt = select(Employee).order_by(Employee.name)
     result = await db.execute(stmt)
