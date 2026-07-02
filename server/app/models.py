@@ -1,0 +1,66 @@
+import uuid
+from sqlalchemy import Column, String, ForeignKey, Date, JSON, UniqueConstraint, Index, UUID
+from sqlalchemy.orm import relationship
+from app.core.database import Base
+
+class Employee(Base):
+    __tablename__ = "employees"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String, nullable=False)
+    email = Column(String, unique=True, nullable=False, index=True)
+    slack_handle = Column(String, nullable=False)
+    role = Column(String, nullable=False, default="employee")
+    department = Column(String, nullable=False)
+    hire_date = Column(Date, nullable=False)
+    buddy_id = Column(UUID(as_uuid=True), ForeignKey("employees.id", ondelete="SET NULL"), nullable=True)
+    hybrid_preference = Column(String, nullable=True)
+    assigned_desk = Column(String, nullable=True)
+    hashed_password = Column(String, nullable=False)
+
+    # Relationships
+    buddy = relationship("Employee", remote_side=[id], backref="buddies")
+    tasks = relationship("ChecklistTask", back_populates="employee", cascade="all, delete-orphan")
+    schedules = relationship("ScheduleEntry", back_populates="employee", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("idx_employees_buddy_id", "buddy_id"),
+    )
+
+class ChecklistTask(Base):
+    __tablename__ = "checklist_tasks"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    employee_id = Column(UUID(as_uuid=True), ForeignKey("employees.id", ondelete="CASCADE"), nullable=False)
+    title = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    status = Column(String, nullable=False, default="pending")
+    skip_reason = Column(String, nullable=True)
+    blocked_by = Column(UUID(as_uuid=True), ForeignKey("checklist_tasks.id", ondelete="SET NULL"), nullable=True)
+    dependencies = Column(JSON, nullable=True)
+
+    # Relationships
+    employee = relationship("Employee", back_populates="tasks")
+    blocked_by_task = relationship("ChecklistTask", remote_side=[id])
+
+    __table_args__ = (
+        Index("idx_checklist_tasks_employee_id", "employee_id"),
+        Index("idx_checklist_tasks_blocked_by", "blocked_by"),
+    )
+
+class ScheduleEntry(Base):
+    __tablename__ = "schedule_entries"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    employee_id = Column(UUID(as_uuid=True), ForeignKey("employees.id", ondelete="CASCADE"), nullable=False)
+    date = Column(Date, nullable=False)
+    status = Column(String, nullable=False)
+
+    # Relationships
+    employee = relationship("Employee", back_populates="schedules")
+
+    __table_args__ = (
+        UniqueConstraint("employee_id", "date", name="uq_schedule_entries_employee_date"),
+        Index("idx_schedule_entries_employee_id", "employee_id"),
+        Index("idx_schedule_entries_date", "date"),
+    )
