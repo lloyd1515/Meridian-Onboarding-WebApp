@@ -475,15 +475,15 @@ export const LoginPage: React.FC = () => {
               Onboarding Platform
             </span>
             <h1 className="text-display font-bold leading-tight mb-4 text-white">
-              Enterprise-Grade AI Engineering.
+              Your first day, less chaotic.
             </h1>
             <p className="text-body-lg text-text-muted max-w-md">
-              Welcome to the Meridian digital integration workspace. Access your personalized onboarding brief, track milestones, and manage hybrid schedules.
+              Everything you need for your first month at Meridian: your onboarding checklist, your tech buddy, your hybrid schedule, and the people you'll be working with.
             </p>
           </div>
           <div>
             <p className="font-mono text-caption text-text-muted uppercase tracking-widest">
-              System status: ONLINE (WCAG AAA)
+              Hybrid onboarding, 3 days office / 2 days remote
             </p>
           </div>
         </div>

@@ -6,6 +6,7 @@ import { LayoutShell } from './components/LayoutShell';
 import { LoginPage } from './features/auth/LoginPage';
 import { DashboardPage } from './features/onboarding/DashboardPage';
 import { OnboardingChecklist } from './features/onboarding/OnboardingChecklist';
+import { CompanyGuidePage } from './features/onboarding/CompanyGuidePage';
 import { EmployeeDirectory } from './features/hr-admin/EmployeeDirectory';
 import { HybridScheduler } from './features/hr-admin/HybridScheduler';
 import { BackupRestore } from './features/hr-admin/BackupRestore';
@@ -62,13 +63,21 @@ export const App: React.FC = () => {
                   </ProtectedRoute>
                 } 
               />
-              <Route 
-                path="/directory" 
+              <Route
+                path="/directory"
                 element={
                   <ProtectedRoute>
                     <EmployeeDirectory readOnly />
                   </ProtectedRoute>
-                } 
+                }
+              />
+              <Route
+                path="/guide"
+                element={
+                  <ProtectedRoute>
+                    <CompanyGuidePage />
+                  </ProtectedRoute>
+                }
               />
 
               {/* HR Admin Protected Routes */}

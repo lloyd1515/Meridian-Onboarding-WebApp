@@ -1,7 +1,6 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { MegaMenu } from './MegaMenu';
 import { Footer } from './Footer';
 
 interface LayoutShellProps {
@@ -135,7 +134,7 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
                 activeDropdown === 'practice' ? 'text-slate-400' : 'text-[#0B2A3D] hover:text-accent'
               }`}
             >
-              The practice
+              Company Guide
               <span className={`material-symbols-outlined text-[16px] transition-transform duration-200 ${activeDropdown === 'practice' ? 'rotate-180' : ''}`}>
                 keyboard_arrow_down
               </span>
@@ -178,11 +177,68 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
           </button>
 
           {activeDropdown === 'practice' && (
-            <MegaMenu 
-              isOpen={true} 
+            <div
+              className="absolute left-0 w-full bg-white border-t border-border shadow-xl z-50 font-sans text-text-primary rounded-b-2xl"
+              style={{ top: '100%' }}
               onMouseEnter={() => handleMouseEnter('practice')}
               onMouseLeave={handleMouseLeave}
-            />
+            >
+              <div className="max-w-[1600px] mx-auto px-6 py-8 md:py-12 grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-12">
+                <div className="md:col-span-1 flex flex-col gap-3">
+                  <span className="font-mono text-[10px] text-accent uppercase tracking-widest font-semibold">
+                    company guide
+                  </span>
+                  <h3 className="font-sans font-bold text-h4 text-[#0B2A3D]">
+                    New Here? Start With This
+                  </h3>
+                  <p className="text-body-sm text-text-muted leading-relaxed">
+                    First-day logistics, IT setup, hybrid policy, and Slack/Meet basics -- department-relevant answers first.
+                  </p>
+                </div>
+
+                <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
+                  <a
+                    href="#/guide"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate('/guide');
+                      setActiveDropdown(null);
+                    }}
+                    className="group flex flex-col gap-1.5 p-3 -m-3 hover:bg-slate-50 transition-all duration-200 rounded"
+                  >
+                    <div className="font-sans font-bold text-body text-[#0B2A3D] group-hover:text-accent transition-colors flex items-center gap-1.5">
+                      Full Company Guide
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity text-accent text-body-sm">
+                        →
+                      </span>
+                    </div>
+                    <div className="text-body-sm text-text-muted leading-relaxed">
+                      First-day logistics, IT & equipment setup, hybrid policy, Slack & Meet basics, and department notes.
+                    </div>
+                  </a>
+
+                  <a
+                    href="#/guide#department-notes"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate('/guide');
+                      setActiveDropdown(null);
+                    }}
+                    className="group flex flex-col gap-1.5 p-3 -m-3 hover:bg-slate-50 transition-all duration-200 rounded"
+                  >
+                    <div className="font-sans font-bold text-body text-[#0B2A3D] group-hover:text-accent transition-colors flex items-center gap-1.5">
+                      Department Notes
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity text-accent text-body-sm">
+                        →
+                      </span>
+                    </div>
+                    <div className="text-body-sm text-text-muted leading-relaxed">
+                      What to expect in your first month, specific to Engineering, Sales, Marketing, Finance, or HR.
+                    </div>
+                  </a>
+                </div>
+              </div>
+            </div>
           )}
 
           {activeDropdown === 'foundation' && (
@@ -399,13 +455,15 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
 
               <div className="flex flex-col gap-2">
                 <span className="font-mono text-[10px] text-accent uppercase tracking-widest font-semibold">
-                  The practice
+                  Company Guide
                 </span>
                 <div className="flex flex-col gap-2 pl-2">
-                  <a href="#/capabilities/ai-engineering" className="text-left font-semibold text-[#0B2A3D] hover:text-accent py-1 text-body-sm">AI Engineering</a>
-                  <a href="#/capabilities/data-analytics" className="text-left font-semibold text-[#0B2A3D] hover:text-accent py-1 text-body-sm">Data Analytics</a>
-                  <a href="#/capabilities/cloud-architecture" className="text-left font-semibold text-[#0B2A3D] hover:text-accent py-1 text-body-sm">Cloud Architecture</a>
-                  <a href="#/capabilities/custom-software" className="text-left font-semibold text-[#0B2A3D] hover:text-accent py-1 text-body-sm">Custom Software</a>
+                  <button
+                    onClick={() => navigate('/guide')}
+                    className="text-left font-semibold text-[#0B2A3D] hover:text-accent py-1 text-body-sm"
+                  >
+                    Full Company Guide
+                  </button>
                 </div>
               </div>
 
