@@ -59,7 +59,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({ readOnly =
     }
 
     const newEmp: Employee = {
-      id: `emp-${Date.now()}`,
+      id: crypto.randomUUID(),
       name,
       email,
       slackHandle: slack,
@@ -83,7 +83,9 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({ readOnly =
     }
   };
 
-  const buddiesList = employees.filter(emp => emp.role.toLowerCase().includes('buddy') || emp.id === 'emp-buddy');
+  // Any existing employee can be assigned as a buddy — there is no dedicated
+  // "buddy" role, it's just whichever colleague is paired with the new hire.
+  const buddiesList = employees;
 
   return (
     <div className="flex flex-col gap-6 font-sans">
