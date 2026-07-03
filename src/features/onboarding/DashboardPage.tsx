@@ -271,6 +271,41 @@ export const DashboardPage: React.FC = () => {
               );
             })}
           </div>
+
+          {!isPreboarding && (
+            <div className="pt-4 border-t border-border flex flex-col gap-2">
+              <h4 className="font-mono text-caption uppercase text-text-muted">This Week's Agenda</h4>
+              <div className="flex flex-col gap-1.5">
+                {days.map((day, idx) => {
+                  const dayIdx = idx.toString();
+                  const dayIds = scheduler[dayIdx] || [];
+                  const isUserScheduled = currentUser ? dayIds.includes(currentUser.id) : false;
+                  const isBuddyScheduled = buddy ? dayIds.includes(buddy.id) : false;
+
+                  const openTasks = tasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
+                  const focusTask = openTasks.length > 0 ? openTasks[idx % openTasks.length] : null;
+
+                  let agenda: string;
+                  if (!focusTask) {
+                    agenda = 'Checklist is all caught up.';
+                  } else if (isUserScheduled && isBuddyScheduled) {
+                    agenda = `In office with ${buddy?.name.split(' ')[0]} — good day to sync on "${focusTask.title}".`;
+                  } else if (isUserScheduled) {
+                    agenda = `In office — focus on "${focusTask.title}".`;
+                  } else {
+                    agenda = `Remote — heads-down on "${focusTask.title}".`;
+                  }
+
+                  return (
+                    <div key={day} className="flex gap-3 items-baseline text-caption font-mono">
+                      <span className="text-text-muted uppercase w-9 shrink-0">{day.slice(0, 3)}</span>
+                      <span className="text-text-primary">{agenda}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="border border-border bg-surface p-6 rounded-2xl flex flex-col gap-4 shadow-sm">
