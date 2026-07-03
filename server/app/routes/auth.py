@@ -43,15 +43,6 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str, 
         path="/"
     )
 
-    response.set_cookie(
-        key="__Host-csrf_token",
-        value=csrf_token,
-        httponly=False,
-        secure=is_prod,
-        samesite="strict",
-        path="/"
-    )
-
 @router.post("/login", response_model=EmployeeOut)
 async def login(response: Response, credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
     stmt = select(Employee).where(Employee.email == credentials.email)
@@ -91,10 +82,10 @@ async def signup(response: Response, payload: SignupRequest, db: AsyncSession = 
             detail="Email address already registered"
         )
 
-    # Pre-boarding determination: if hire date is in future, set role to preboardee
-    assigned_role = payload.role or "employee"
-    if payload.hire_date > date.today():
-        assigned_role = "preboardee"
+    # Role is always computed server-side and can never be supplied by the caller:
+    # signup can only ever produce "employee" or "preboardee". Admins (hr_admin) and
+    # other privileged roles are seeded/created by an existing admin, never via self-signup.
+    assigned_role = "preboardee" if payload.hire_date > date.today() else "employee"
 
     hashed = hash_password(payload.password)
     user = Employee(
@@ -163,6 +154,16 @@ async def signup(response: Response, payload: SignupRequest, db: AsyncSession = 
 
 @router.post("/refresh")
 async def refresh(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
+    # CSRF validation: refresh only depends on get_db, so the check performed by
+    # get_current_user for other state-changing routes never runs here. Mirror it explicitly.
+    csrf_cookie = request.cookies.get("__Host-csrf_token") or request.cookies.get("csrf_token")
+    csrf_header = request.headers.get("X-CSRF-Token")
+    if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="CSRF validation failed",
+        )
+
     ref_token = request.cookies.get("refresh_token")
     if not ref_token:
         raise HTTPException(

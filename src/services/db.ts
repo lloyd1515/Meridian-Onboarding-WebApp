@@ -4,7 +4,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8090';
 
 // Helper to get CSRF token from cookies
 export function getCSRFToken(): string {
-  const match = document.cookie.match(/__Host-csrf_token=([^;]+)/);
+  const match = document.cookie.match(/csrf_token=([^;]+)/);
   return match ? match[1] : '';
 }
 

@@ -11,7 +11,6 @@ class SignupRequest(BaseModel):
     name: str
     email: str
     slack_handle: str
-    role: Optional[str] = "employee"
     department: str
     hire_date: date
     password: str
