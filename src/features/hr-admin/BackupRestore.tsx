@@ -166,7 +166,7 @@ export const BackupRestore: React.FC = () => {
                 Export a full JSON snapshot of the local database including all employees, onboarding checklists, and scheduler configurations.
               </p>
               <ul className="font-mono text-caption text-text-muted list-disc list-inside flex flex-col gap-1.5 font-semibold">
-                <li>Schema: Pathway v2.1</li>
+                <li>Schema: Meridian v2.1</li>
                 <li>Format: JSON file</li>
                 <li>Database: IndexedDB localForage</li>
               </ul>

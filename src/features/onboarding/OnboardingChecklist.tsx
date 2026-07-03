@@ -315,7 +315,7 @@ export const OnboardingChecklist: React.FC = () => {
 
       <div className="flex justify-between items-end border-b border-border pb-4">
         <div>
-          <h2 className="text-[32px] font-bold font-sans leading-[1.2] tracking-[-0.01em] mb-1 text-text-primary">Your Onboarding Pathway</h2>
+          <h2 className="text-[32px] font-bold font-sans leading-[1.2] tracking-[-0.01em] mb-1 text-text-primary">Your Onboarding Journey</h2>
           <p className="text-text-muted text-body leading-[1.5] font-sans">Complete these critical tasks to unlock full system access.</p>
         </div>
         <button 

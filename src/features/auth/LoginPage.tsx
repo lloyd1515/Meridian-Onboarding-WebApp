@@ -140,8 +140,8 @@ export const LoginPage: React.FC = () => {
         <div className="flex items-center gap-2 mb-4">
           <div className="w-5 h-5 bg-gradient-to-br from-[#2BC4D9] to-[#F2994A] rotate-45 transform rounded-sm shadow-sm" />
           <span className="font-bold text-xl tracking-tight">
-            <span className="text-[#0B2A3D]">Qu</span>
-            <span className="text-accent">biz</span>
+            <span className="text-[#0B2A3D]">Meri</span>
+            <span className="text-accent">dian</span>
           </span>
         </div>
         <h2 className="text-h2 font-bold text-[#0B2A3D] mb-2">
