@@ -1,0 +1,4 @@
+# Shell scripts run inside Linux containers (docker-compose bind-mounts the
+# working tree directly) — force LF regardless of core.autocrlf, otherwise a
+# Windows checkout can silently break the container with CRLF line endings.
+*.sh text eol=lf

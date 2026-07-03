@@ -11,6 +11,17 @@ async def seed():
         await conn.run_sync(Base.metadata.create_all)
 
     async with AsyncSessionLocal() as session:
+        # Idempotency guard: this script now runs automatically on every
+        # `docker compose up` (see server/entrypoint.sh). Bail out early if
+        # the HR admin already exists so re-runs don't crash on the unique
+        # email constraint (and don't destructively wipe existing data).
+        existing_admin = await session.execute(
+            select(Employee).where(Employee.email == "vlad.hr@meridian.com")
+        )
+        if existing_admin.scalar_one_or_none() is not None:
+            print("Database already seeded, skipping.")
+            return
+
         # Clear existing data to allow clean re-runs of seed script
         print("Clearing existing tables...")
         await session.execute(delete(ScheduleEntry))
