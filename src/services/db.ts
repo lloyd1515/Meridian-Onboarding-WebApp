@@ -93,6 +93,14 @@ export type Employee = z.infer<typeof EmployeeSchema>;
 export type Task = z.infer<typeof TaskSchema>;
 export type BackupData = z.infer<typeof BackupSchema>;
 
+// An employee counts as a "new hire" as long as their start date hasn't
+// arrived yet relative to the app's simulated current date -- the same
+// signal AuthContext uses for isPreboarding, rather than guessing from the
+// shape of their id (which broke once new-hire ids became real UUIDs).
+export function isNewHire(emp: Employee, referenceDate: string): boolean {
+  return new Date(emp.hireDate).getTime() > new Date(referenceDate).getTime();
+}
+
 // Baseline scheduler date mapping helper
 const SCHEDULER_DATES = [
   '2026-07-06', // Monday (0)

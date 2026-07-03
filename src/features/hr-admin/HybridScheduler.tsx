@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useDb } from '../../context/DbContext';
-import { Employee } from '../../services/db';
+import { useAuth } from '../../context/AuthContext';
+import { Employee, isNewHire } from '../../services/db';
 
 interface ScheduledEmployee extends Employee {
   isNewHire: boolean;
@@ -10,7 +11,8 @@ interface ScheduledEmployee extends Employee {
 
 export const HybridScheduler: React.FC = () => {
   const { employees, scheduler, updateScheduler } = useDb();
-  
+  const { simulationDate } = useAuth();
+
   const [columns, setColumns] = useState<Record<string, string[]>>({
     '0': [], '1': [], '2': [], '3': [], '4': []
   });
@@ -130,11 +132,11 @@ export const HybridScheduler: React.FC = () => {
     const emp = employees.find(e => e.id === empId);
     if (!emp) return null;
 
-    const isNewHire = emp.id === 'emp-newhire' || (emp.id.startsWith('emp-') && emp.id.length > 10 && !isNaN(Number(emp.id.replace('emp-', ''))));
+    const isNew = isNewHire(emp, simulationDate);
     let hasBuddyOverlap = false;
     let isBuddyRemote = false;
 
-    if (isNewHire && emp.buddyId) {
+    if (isNew && emp.buddyId) {
       const buddyScheduledToday = (columns[colIdx] || []).includes(emp.buddyId);
       if (buddyScheduledToday) {
         hasBuddyOverlap = true;
@@ -145,7 +147,7 @@ export const HybridScheduler: React.FC = () => {
 
     return {
       ...emp,
-      isNewHire,
+      isNewHire: isNew,
       hasBuddyOverlap,
       isBuddyRemote,
     };
@@ -238,7 +240,7 @@ export const HybridScheduler: React.FC = () => {
 
           <div className="flex-grow flex flex-col gap-2 overflow-y-auto pr-1">
             {unassignedEmployees.map(emp => {
-              const isNew = emp.id === 'emp-newhire' || (emp.id.startsWith('emp-') && emp.id.length > 10 && !isNaN(Number(emp.id.replace('emp-', ''))));
+              const isNew = isNewHire(emp, simulationDate);
               return (
                 <div
                   key={emp.id}

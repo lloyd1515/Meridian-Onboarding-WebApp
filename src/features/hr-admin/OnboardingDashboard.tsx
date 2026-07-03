@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useDb } from '../../context/DbContext';
-import { getChecklists, Task, Employee } from '../../services/db';
+import { useAuth } from '../../context/AuthContext';
+import { getChecklists, isNewHire, Task, Employee } from '../../services/db';
 
 export const OnboardingDashboard: React.FC = () => {
   const { employees } = useDb();
+  const { simulationDate } = useAuth();
   const [checklists, setChecklists] = useState<Record<string, Task[]>>({});
   const [loading, setLoading] = useState<boolean>(true);
   const [onlyNewHires, setOnlyNewHires] = useState<boolean>(false);
@@ -25,15 +27,11 @@ export const OnboardingDashboard: React.FC = () => {
     fetchChecklists();
   }, []);
 
-  const isNewHire = (id: string) => {
-    return id === 'emp-newhire' || (id.startsWith('emp-') && id.length > 10);
-  };
-
   const filteredEmployees = employees.filter(emp => {
-    const matchesSearch = emp.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    const matchesSearch = emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           emp.role.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesDept = selectedDept === 'ALL' || emp.department === selectedDept;
-    const matchesNewHire = !onlyNewHires || isNewHire(emp.id);
+    const matchesNewHire = !onlyNewHires || isNewHire(emp, simulationDate);
     return matchesSearch && matchesDept && matchesNewHire;
   });
 
@@ -262,7 +260,7 @@ export const OnboardingDashboard: React.FC = () => {
               {employeeStats.length > 0 ? (
                 employeeStats.map(({ emp, completionRate, tasks30, tasks60, tasks90, pct30, pct60, pct90 }) => {
                   const isExpanded = expandedEmployeeId === emp.id;
-                  const isNew = isNewHire(emp.id);
+                  const isNew = isNewHire(emp, simulationDate);
 
                   return (
                     <div key={emp.id} className="flex flex-col">
