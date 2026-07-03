@@ -313,8 +313,9 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({ readOnly =
 
               <form onSubmit={handleAddEmployee} className="flex flex-col gap-3.5">
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-mono text-caption uppercase text-text-primary font-bold">Full Name</label>
+                  <label htmlFor="newHireName" className="font-mono text-caption uppercase text-text-primary font-bold">Full Name</label>
                   <input
+                    id="newHireName"
                     type="text"
                     required
                     value={name}
@@ -325,8 +326,9 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({ readOnly =
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-mono text-caption uppercase text-text-primary font-bold">Email (@meridian.com)</label>
+                  <label htmlFor="newHireEmail" className="font-mono text-caption uppercase text-text-primary font-bold">Email (@meridian.com)</label>
                   <input
+                    id="newHireEmail"
                     type="email"
                     required
                     value={email}
@@ -337,8 +339,9 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({ readOnly =
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-mono text-caption uppercase text-text-primary font-bold">Slack Handle (starts with @)</label>
+                  <label htmlFor="newHireSlack" className="font-mono text-caption uppercase text-text-primary font-bold">Slack Handle (starts with @)</label>
                   <input
+                    id="newHireSlack"
                     type="text"
                     required
                     value={slack}
@@ -349,8 +352,9 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({ readOnly =
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-mono text-caption uppercase text-text-primary font-bold">Corporate Role</label>
+                  <label htmlFor="newHireRole" className="font-mono text-caption uppercase text-text-primary font-bold">Corporate Role</label>
                   <input
+                    id="newHireRole"
                     type="text"
                     required
                     value={roleName}
@@ -361,8 +365,9 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({ readOnly =
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-mono text-caption uppercase text-text-primary font-bold">Department</label>
+                  <label htmlFor="newHireDept" className="font-mono text-caption uppercase text-text-primary font-bold">Department</label>
                   <select
+                    id="newHireDept"
                     value={dept}
                     onChange={(e) => setDept(e.target.value)}
                     className="border border-border bg-white px-3 py-2 rounded-xl text-body-sm focus:outline-none focus:border-accent cursor-pointer"
@@ -374,8 +379,9 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({ readOnly =
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-mono text-caption uppercase text-text-primary font-bold">Associate Buddy</label>
+                  <label htmlFor="newHireBuddy" className="font-mono text-caption uppercase text-text-primary font-bold">Associate Buddy</label>
                   <select
+                    id="newHireBuddy"
                     value={buddyId}
                     onChange={(e) => setBuddyId(e.target.value)}
                     className="border border-border bg-white px-3 py-2 rounded-xl text-body-sm focus:outline-none focus:border-accent cursor-pointer"
@@ -408,8 +414,9 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({ readOnly =
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-mono text-caption uppercase text-text-primary font-bold">Hire Date</label>
+                  <label htmlFor="newHireDate" className="font-mono text-caption uppercase text-text-primary font-bold">Hire Date</label>
                   <input
+                    id="newHireDate"
                     type="date"
                     value={hireDate}
                     onChange={(e) => setHireDate(e.target.value)}

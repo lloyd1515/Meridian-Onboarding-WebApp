@@ -1,0 +1,84 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { EmployeeDirectory } from './EmployeeDirectory';
+import type { Employee } from '../../services/db';
+
+const existingBuddy: Employee = {
+  id: 'buddy-existing-1',
+  name: 'Alice Existing',
+  email: 'alice.existing@meridian.com',
+  slackHandle: '@alice.existing',
+  role: 'Senior Software Engineer',
+  department: 'Engineering',
+  hireDate: '2022-01-15',
+  buddyId: null,
+  hybridPreference: 'HYBRID',
+};
+
+const mockAddEmployee = vi.fn();
+
+vi.mock('../../context/DbContext', () => ({
+  useDb: () => ({
+    employees: [existingBuddy],
+    scheduler: { '0': [], '1': [], '2': [], '3': [], '4': [] },
+    isLoading: false,
+    refreshData: vi.fn(),
+    addEmployee: mockAddEmployee,
+    updateScheduler: vi.fn(),
+  }),
+}));
+
+vi.mock('../../context/AuthContext', () => ({
+  useAuth: () => ({
+    currentUser: existingBuddy,
+    role: 'admin',
+    isPreboarding: false,
+    simulationDate: '2026-06-25',
+    setRole: vi.fn(),
+    setSimulationDate: vi.fn(),
+    login: vi.fn(),
+    logout: vi.fn(),
+  }),
+}));
+
+const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+describe('EmployeeDirectory Add New Hire', () => {
+  beforeEach(() => {
+    mockAddEmployee.mockReset();
+    mockAddEmployee.mockResolvedValue(undefined);
+  });
+
+  it('offers every existing employee as a selectable buddy', async () => {
+    const user = userEvent.setup();
+    render(<EmployeeDirectory />);
+
+    await user.click(screen.getByRole('button', { name: /add new hire/i }));
+
+    const buddySelect = screen.getByLabelText(/associate buddy/i);
+    expect(within(buddySelect).getByRole('option', { name: 'Alice Existing' })).toBeInTheDocument();
+  });
+
+  // Regression test for the P0.2 bug: new hires were created with a
+  // non-UUID id (`emp-${Date.now()}`), which the backend rejected outright.
+  it('registers a new hire with a real UUID id', async () => {
+    const user = userEvent.setup();
+    render(<EmployeeDirectory />);
+
+    await user.click(screen.getByRole('button', { name: /add new hire/i }));
+
+    await user.type(screen.getByLabelText(/full name/i), 'New Hire Person');
+    await user.type(screen.getByLabelText(/email/i), 'new.hire@meridian.com');
+    await user.type(screen.getByLabelText(/slack handle/i), '@new.hire');
+    await user.type(screen.getByLabelText(/corporate role/i), 'Software Specialist');
+
+    await user.click(screen.getByRole('button', { name: /register hire/i }));
+
+    expect(mockAddEmployee).toHaveBeenCalledTimes(1);
+    const submitted = mockAddEmployee.mock.calls[0][0];
+    expect(submitted.id).toMatch(UUID_V4_REGEX);
+    expect(submitted.name).toBe('New Hire Person');
+    expect(submitted.email).toBe('new.hire@meridian.com');
+  });
+});
