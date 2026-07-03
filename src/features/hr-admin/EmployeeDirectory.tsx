@@ -231,7 +231,60 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({ readOnly =
       )}
 
       {activeTab === 'chart' && (
-        <RelationshipExplorer currentUser={currentUser} employees={employees} />
+        <div className="flex flex-col gap-6">
+          <RelationshipExplorer currentUser={currentUser} employees={employees} />
+
+          <div className="border border-border bg-surface p-6 rounded-2xl shadow-sm">
+            <div className="border-b border-border pb-3 mb-4">
+              <h3 className="font-sans text-h3 font-bold text-text-primary">Company-Wide Org Chart</h3>
+              <p className="text-body-sm text-text-muted mt-1">
+                Every department at Meridian, grouped by head and full roster ({employees.length} employees total).
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {['Engineering', 'Sales', 'Marketing', 'HR', 'Finance'].map(dept => {
+                const members = employees.filter(emp => emp.department === dept);
+                const head = members.find(
+                  emp => emp.role.includes('VP') || emp.role.includes('Director') || emp.role.includes('Manager')
+                ) || null;
+
+                return (
+                  <div key={dept} className="border border-border bg-surface-muted/30 rounded-xl p-4 flex flex-col gap-3">
+                    <div className="flex justify-between items-center border-b border-border pb-2">
+                      <h4 className="font-sans font-bold text-body text-text-primary">{dept}</h4>
+                      <span className="font-mono text-[10px] text-text-muted uppercase font-bold">{members.length} members</span>
+                    </div>
+
+                    {head && (
+                      <div className="flex items-center gap-2 bg-accent/5 border border-accent/20 rounded-lg px-3 py-2">
+                        <span className="text-[9px] font-mono text-accent uppercase font-bold shrink-0">Head</span>
+                        <span className="text-body-sm font-bold text-text-primary truncate">{head.name}</span>
+                        <span className="text-caption text-text-muted truncate">{head.role}</span>
+                      </div>
+                    )}
+
+                    <div className="flex flex-col gap-1 max-h-[220px] overflow-y-auto pr-1">
+                      {members.length > 0 ? (
+                        members.map(emp => (
+                          <div
+                            key={emp.id}
+                            className="flex justify-between items-center gap-2 text-caption font-mono py-1 border-b border-border/40 last:border-0"
+                          >
+                            <span className="text-text-primary truncate">{emp.name}</span>
+                            <span className="text-text-muted truncate">{emp.role}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <span className="text-caption text-text-muted italic py-2 text-center">No members yet.</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       )}
 
       {!readOnly && activeTab === 'progress' && (

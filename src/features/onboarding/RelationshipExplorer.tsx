@@ -82,7 +82,7 @@ export const RelationshipExplorer: React.FC<RelationshipExplorerProps> = ({
             )}
 
             <div className="border-[2px] border-success bg-success/5 px-4 py-2 text-center rounded-xl w-[180px] shadow-md ring-1 ring-success/20">
-              <span className="text-[9px] font-mono text-success uppercase tracking-wider font-bold">Tu (New Hire)</span>
+              <span className="text-[9px] font-mono text-success uppercase tracking-wider font-bold">You (New Hire)</span>
               <h4 className="font-sans font-bold text-body-sm mt-1 text-text-primary">{currentUser.name}</h4>
               <p className="text-[10px] text-success font-mono truncate">{currentUser.role}</p>
             </div>
