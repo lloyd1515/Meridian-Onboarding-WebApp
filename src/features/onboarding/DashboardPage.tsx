@@ -64,14 +64,16 @@ export const DashboardPage: React.FC = () => {
       const baseOccupancy = 40 - (parseInt(dayIdx) * 5); // Simulated static base occupancy
       const totalOccupancy = baseOccupancy + currentList.length;
 
-      // Absolute daily capacity limit is 50
-      if (totalOccupancy >= 50) {
-        alert('🔒 Capacity limit reached! The office cannot exceed 50 employees on any single day.');
+      // Office capacity is 130 seats, warning threshold 124 (95% of 130) — must stay
+      // in sync with the capacity cap in HybridScheduler.tsx (src/features/hr-admin/HybridScheduler.tsx).
+      // Absolute daily capacity limit is 130
+      if (totalOccupancy >= 130) {
+        alert('🔒 Capacity limit reached! The office cannot exceed 130 employees on any single day.');
         return;
       }
-      
-      // 95% capacity buffer alert
-      if (totalOccupancy >= 48) {
+
+      // 95% capacity buffer alert (95% of 130 is 123.5 -> 124)
+      if (totalOccupancy >= 124) {
         alert('⚠️ ALERT: Capacity threshold reached. No more employees can be scheduled on this day.');
       }
       
@@ -186,7 +188,8 @@ export const DashboardPage: React.FC = () => {
               
               const baseOccupancy = 40 - (idx * 5);
               const totalOccupancy = baseOccupancy + dayIds.length;
-              const isCapacityTight = totalOccupancy >= 48;
+              // Office capacity 130, warn at 124 — keep in sync with HybridScheduler.tsx
+              const isCapacityTight = totalOccupancy >= 124;
 
               return (
                 <button
@@ -207,7 +210,7 @@ export const DashboardPage: React.FC = () => {
                   </div>
 
                   <span className={`text-[9px] font-mono block ${isCapacityTight ? 'text-danger font-bold' : 'text-text-muted'}`}>
-                    Capacitate: {totalOccupancy}/50
+                    Capacitate: {totalOccupancy}/130
                   </span>
 
                   <div className="mt-2 pt-2 border-t border-border flex flex-col gap-1 w-full text-left">
