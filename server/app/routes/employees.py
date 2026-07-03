@@ -7,6 +7,7 @@ from app.core.dependencies import get_current_user, RoleChecker
 from app.models import Employee
 from app.schemas import EmployeeOut, BackupEmployeeInput
 from app.core.security import hash_password
+from app.core.checklist_templates import seed_checklist_tasks
 
 router = APIRouter(prefix="/employees", tags=["Employees"])
 
@@ -61,6 +62,11 @@ async def save_employee(
             hashed_password=emp_data.hashed_password if emp_data.hashed_password.startswith("$argon2id$") else hash_password(emp_data.hashed_password)
         )
         db.add(new_emp)
+        await db.flush()
+        # This is what makes HR's "Add New Hire" form produce a real,
+        # persisted checklist instead of the client-side-only placeholder
+        # it silently fell back to before.
+        await seed_checklist_tasks(db, new_emp.id, new_emp.department)
     await db.commit()
     
     stmt = select(Employee).where(Employee.id == emp_data.id)

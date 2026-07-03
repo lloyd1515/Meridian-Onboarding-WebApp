@@ -18,80 +18,10 @@ export const OnboardingChecklist: React.FC = () => {
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 
-  const defaultMilestones: Task[] = [
-    {
-      id: 'task-1',
-      title: 'Sign employment contract',
-      description: 'Complete electronic signing of your contract and annexes in the portal.',
-      status: 'completed',
-      dependencies: [],
-    },
-    {
-      id: 'task-2',
-      title: 'Configure work laptop',
-      description: 'Install operating system, VPN client, and core development tools.',
-      status: 'in_progress',
-      dependencies: ['task-1'],
-    },
-    {
-      id: 'task-3',
-      title: 'First meeting with Buddy',
-      description: 'Schedule a 30-minute Zoom or coffee meet to get to know each other.',
-      status: 'pending',
-      dependencies: ['task-2'],
-    },
-    {
-      id: 'task-4',
-      title: 'Install corporate security software',
-      description: 'Install the local security agent before accessing the internal network.',
-      status: 'blocked',
-      blockedBy: 'task-2',
-      dependencies: ['task-2', 'task-3'],
-    },
-    {
-      id: 'task-5',
-      title: 'Information security training',
-      description: 'Complete the mandatory interactive training on the HR platform.',
-      status: 'pending',
-      dependencies: ['task-1'],
-    },
-    {
-      id: 'task-60-1',
-      title: 'Meet the team members',
-      description: 'Schedule informal 1-on-1 chats with other engineers in your department.',
-      status: 'pending',
-      dependencies: [],
-    },
-    {
-      id: 'task-90-1',
-      title: 'Submit first Pull Request (PR)',
-      description: 'Fix a small bug or implement a minor change in the main codebase.',
-      status: 'pending',
-      dependencies: ['task-2'],
-    },
-    {
-      id: 'task-90-2',
-      title: 'Present a mini-demo',
-      description: 'Showcase your completed project during the weekly engineering sync.',
-      status: 'pending',
-      dependencies: ['task-90-1'],
-    },
-  ];
-
   const loadTasks = async () => {
     if (!currentUser) return;
     const loaded = await getEmployeeChecklist(currentUser.id);
-    
-    if (loaded.length <= 5) {
-      const merged = defaultMilestones.map(defTask => {
-        const found = loaded.find(t => t.id === defTask.id);
-        return found ? { ...defTask, status: found.status } : defTask;
-      });
-      setTasks(merged);
-      await saveEmployeeChecklist(currentUser.id, merged);
-    } else {
-      setTasks(loaded);
-    }
+    setTasks(loaded);
   };
 
   useEffect(() => {
@@ -182,12 +112,6 @@ export const OnboardingChecklist: React.FC = () => {
 
   const toggleTaskExpansion = (toggleTaskId: string) => {
     setExpandedTaskId(prev => (prev === toggleTaskId ? null : toggleTaskId));
-  };
-
-  const handleResetChecklist = async () => {
-    if (!currentUser) return;
-    setTasks(defaultMilestones);
-    await saveEmployeeChecklist(currentUser.id, defaultMilestones);
   };
 
   const completedCount = tasks.filter(s => s.status === 'completed').length;
@@ -318,15 +242,6 @@ export const OnboardingChecklist: React.FC = () => {
           <h2 className="text-[32px] font-bold font-sans leading-[1.2] tracking-[-0.01em] mb-1 text-text-primary">Your Onboarding Journey</h2>
           <p className="text-text-muted text-body leading-[1.5] font-sans">Complete these critical tasks to unlock full system access.</p>
         </div>
-        <button 
-          onClick={handleResetChecklist}
-          className="flex items-center gap-2 bg-transparent border border-[#0B2A3D] hover:bg-[#0B2A3D]/5 text-[#0B2A3D] px-4 py-2 rounded-full font-sans font-medium text-xs transition-colors shrink-0"
-        >
-          <span>Reset Checklist</span>
-          <span className="flex items-center justify-center w-5 h-5 bg-[#0B2A3D] rounded-full text-white">
-            <span className="material-symbols-outlined text-[14px] font-bold">restart_alt</span>
-          </span>
-        </button>
       </div>
 
       {assignedBuddy && (

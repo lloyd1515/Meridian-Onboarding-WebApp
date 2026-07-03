@@ -6,7 +6,8 @@ from sqlalchemy import select, delete
 from app.core.database import get_db
 from app.core.config import settings
 from app.core.security import verify_password, hash_password, create_access_token, create_refresh_token, verify_token
-from app.models import Employee, RefreshToken, ChecklistTask
+from app.core.checklist_templates import seed_checklist_tasks
+from app.models import Employee, RefreshToken
 from app.schemas import LoginRequest, SignupRequest, EmployeeOut
 from app.core.dependencies import get_current_user
 
@@ -101,39 +102,9 @@ async def signup(response: Response, payload: SignupRequest, db: AsyncSession = 
     db.add(user)
     await db.flush()
 
-    # Seed default onboarding tasks
-    tasks_data = [
-        {"title": "Sign employment contract", "description": "Complete electronic signing of your contract and annexes in the portal.", "status": "completed", "deps": []},
-        {"title": "Configure work laptop", "description": "Install operating system, VPN client, and core development tools.", "status": "in_progress", "deps": []},
-        {"title": "First meeting with Buddy", "description": "Schedule a 30-minute Zoom or coffee meet to get to know each other.", "status": "pending", "deps": [1]},
-        {"title": "Install corporate security software", "description": "Install the local security agent before accessing the internal network.", "status": "blocked", "deps": [1, 2]},
-        {"title": "Information security training", "description": "Complete the mandatory interactive training on the HR platform.", "status": "pending", "deps": [0]},
-        {"title": "Meet the team members", "description": "Schedule informal 1-on-1 chats with other engineers in your department.", "status": "pending", "deps": []},
-        {"title": "Submit first Pull Request (PR)", "description": "Fix a small bug or implement a minor change in the main codebase.", "status": "pending", "deps": [1]},
-        {"title": "Present a mini-demo", "description": "Showcase your completed project during the weekly engineering sync.", "status": "pending", "deps": [6]}
-    ]
-
-    created_tasks = []
-    for td in tasks_data:
-        task = ChecklistTask(
-            employee_id=user.id,
-            title=td["title"],
-            description=td["description"],
-            status=td["status"],
-            dependencies=[]
-        )
-        db.add(task)
-        await db.flush()
-        created_tasks.append(task)
-
-    # Link dependencies UUIDs
-    for idx, td in enumerate(tasks_data):
-        dep_indices = td["deps"]
-        if dep_indices:
-            dep_uuids = [str(created_tasks[d_idx].id) for d_idx in dep_indices]
-            created_tasks[idx].dependencies = dep_uuids
-            if idx == 3: # Install corporate security software blocked by laptop task
-                created_tasks[idx].blocked_by = created_tasks[1].id
+    # Seed a department-aware default onboarding checklist (shared with the
+    # HR "Add New Hire" flow and the seed script -- see checklist_templates.py)
+    await seed_checklist_tasks(db, user.id, user.department)
 
     access_token = create_access_token({"sub": user.email, "role": user.role})
     refresh_token = create_refresh_token({"sub": user.email})

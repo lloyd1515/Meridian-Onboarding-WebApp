@@ -4,6 +4,7 @@ from sqlalchemy import select, delete
 from app.core.database import engine, Base, AsyncSessionLocal
 from app.models import Employee, ChecklistTask, ScheduleEntry
 from app.core.security import hash_password
+from app.core.checklist_templates import seed_checklist_tasks
 
 async def seed():
     print("Connecting to database and recreating tables if necessary...")
@@ -77,44 +78,10 @@ async def seed():
         session.add(new_hire)
         await session.flush() # Flush to get new_hire ID
 
-        # Seed Jane Doe's checklist tasks matching db.ts
+        # Seed Jane Doe's checklist from the same department-aware template
+        # used by signup and HR's "Add New Hire" flow (checklist_templates.py)
         print("Seeding checklist tasks for Jane Doe...")
-        tasks_data = [
-            {"title": "Sign employment contract", "description": "Complete electronic signing of your contract and annexes in the portal.", "status": "completed", "dependencies": []},
-            {"title": "Configure work laptop", "description": "Install operating system, VPN client, and core development tools.", "status": "in_progress", "dependencies": []}, # Let's keep dependencies simple
-            {"title": "First meeting with Buddy", "description": "Schedule a 30-minute Zoom or coffee meet to get to know each other.", "status": "pending", "dependencies": ["Configure work laptop"]},
-            {"title": "Install corporate security software", "description": "Install the local security agent before accessing the internal network.", "status": "blocked", "dependencies": ["Configure work laptop", "First meeting with Buddy"]},
-            {"title": "Information security training", "description": "Complete the mandatory interactive training on the HR platform.", "status": "pending", "dependencies": ["Sign employment contract"]},
-            {"title": "Meet the team members", "description": "Schedule informal 1-on-1 chats with other engineers in your department.", "status": "pending", "dependencies": []},
-            {"title": "Submit first Pull Request (PR)", "description": "Fix a small bug or implement a minor change in the main codebase.", "status": "pending", "dependencies": ["Configure work laptop"]},
-            {"title": "Present a mini-demo", "description": "Showcase your completed project during the weekly engineering sync.", "status": "pending", "dependencies": ["Submit first Pull Request (PR)"]}
-        ]
-
-        task_instances = {}
-        for td in tasks_data:
-            task = ChecklistTask(
-                employee_id=new_hire.id,
-                title=td["title"],
-                description=td["description"],
-                status=td["status"],
-                dependencies=[] # populated below
-            )
-            session.add(task)
-            await session.flush()
-            task_instances[td["title"]] = task
-
-        # Now link parent/child dependency constraints and foreign keys
-        # "blocked_by" is task-2 ("Configure work laptop")
-        laptop_task = task_instances["Configure work laptop"]
-        meeting_task = task_instances["First meeting with Buddy"]
-        security_task = task_instances["Install corporate security software"]
-        security_task.blocked_by = laptop_task.id
-        
-        # Populate dependencies lists with UUID strings of dependee tasks
-        for td in tasks_data:
-            t_title = td["title"]
-            resolved_deps = [str(task_instances[dep_title].id) for dep_title in td["dependencies"]]
-            task_instances[t_title].dependencies = resolved_deps
+        await seed_checklist_tasks(session, new_hire.id, new_hire.department)
 
         # Seed initial Schedule Entries matching db.ts (DayIndex mappings converted to dates)
         # Week of July 6, 2026: 
@@ -165,6 +132,13 @@ async def seed():
             virtual_employees.append(virtual_emp)
 
         await session.flush() # Flush to get all virtual employee IDs
+
+        # Seed a real, department-aware checklist for every virtual employee too
+        # -- previously only Jane Doe had one, so the HR Onboarding Dashboard and
+        # per-employee checklist views were empty for everyone else.
+        print("Seeding checklists for virtual employees...")
+        for ve in virtual_employees:
+            await seed_checklist_tasks(session, ve.id, ve.department)
 
         # Populate schedule entries for virtual employees (3 days each)
         for idx, ve in enumerate(virtual_employees):
