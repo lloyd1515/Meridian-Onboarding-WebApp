@@ -41,4 +41,10 @@ __pycache__/
 test-results/
 playwright-report/
 
-
+# Internal planning / AI tooling — not part of the deliverable
+vault/
+TaskDescription/
+AGENTS.md
+MEMORY.md
+.mcp.json
+.claude/commands/
