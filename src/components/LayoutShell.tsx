@@ -301,6 +301,26 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
                       Complete tasks, view active phases, and stay on top of your milestones.
                     </div>
                   </a>
+
+                  <a
+                    href="#/ask-hr"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate('/ask-hr');
+                      setActiveDropdown(null);
+                    }}
+                    className="group flex flex-col gap-1.5 p-3 -m-3 hover:bg-slate-50 transition-all duration-200 rounded"
+                  >
+                    <div className="font-sans font-bold text-body text-[#0B2A3D] group-hover:text-accent transition-colors flex items-center gap-1.5">
+                      Ask HR
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity text-accent text-body-sm">
+                        →
+                      </span>
+                    </div>
+                    <div className="text-body-sm text-text-muted leading-relaxed">
+                      Send HR a question and get an answer here once they reply.
+                    </div>
+                  </a>
                 </div>
               </div>
             </div>
@@ -424,6 +444,26 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
                           System database backups, restores, and reset configurations.
                         </div>
                       </a>
+
+                      <a
+                        href="#/admin/questions"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          navigate('/admin/questions');
+                          setActiveDropdown(null);
+                        }}
+                        className="group flex flex-col gap-1.5 p-3 -m-3 hover:bg-slate-50 transition-all duration-200 rounded"
+                      >
+                        <div className="font-sans font-bold text-body text-[#0B2A3D] group-hover:text-accent transition-colors flex items-center gap-1.5">
+                          Ask HR Inbox
+                          <span className="opacity-0 group-hover:opacity-100 transition-opacity text-accent text-body-sm">
+                            →
+                          </span>
+                        </div>
+                        <div className="text-body-sm text-text-muted leading-relaxed">
+                          Review and answer questions submitted by employees.
+                        </div>
+                      </a>
                     </>
                   )}
                 </div>
@@ -449,6 +489,12 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
                     className="text-left font-semibold text-[#0B2A3D] hover:text-accent py-1 text-body-sm"
                   >
                     Onboarding Checklist
+                  </button>
+                  <button
+                    onClick={() => navigate('/ask-hr')}
+                    className="text-left font-semibold text-[#0B2A3D] hover:text-accent py-1 text-body-sm"
+                  >
+                    Ask HR
                   </button>
                 </div>
               </div>
@@ -500,6 +546,12 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
                         className="text-left font-semibold text-[#0B2A3D] hover:text-accent py-1 text-body-sm"
                       >
                         Backup & Restore
+                      </button>
+                      <button
+                        onClick={() => navigate('/admin/questions')}
+                        className="text-left font-semibold text-[#0B2A3D] hover:text-accent py-1 text-body-sm"
+                      >
+                        Ask HR Inbox
                       </button>
                     </>
                   )}

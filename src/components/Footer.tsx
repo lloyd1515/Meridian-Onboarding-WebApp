@@ -47,7 +47,11 @@ export const Footer: React.FC = () => {
             </h4>
             <ul className="flex flex-col gap-2.5 text-body-sm text-white/75">
               <li>Slack: #it-helpdesk for device issues</li>
-              <li>Ask your buddy or HR for anything else</li>
+              <li>
+                <button onClick={() => navigate('/ask-hr')} className="hover:text-accent transition-colors text-left">
+                  Ask HR anything else
+                </button>
+              </li>
             </ul>
           </div>
         </div>

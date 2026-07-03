@@ -8,7 +8,7 @@ from app.core.database import Base, get_db
 from app.main import app
 
 # Import models to ensure they register on Base.metadata
-from app.models import Employee, ChecklistTask, ScheduleEntry
+from app.models import Employee, ChecklistTask, ScheduleEntry, Question
 
 # SQLite in-memory database URL for testing
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"

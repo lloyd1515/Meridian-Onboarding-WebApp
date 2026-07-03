@@ -7,9 +7,11 @@ import { LoginPage } from './features/auth/LoginPage';
 import { DashboardPage } from './features/onboarding/DashboardPage';
 import { OnboardingChecklist } from './features/onboarding/OnboardingChecklist';
 import { CompanyGuidePage } from './features/onboarding/CompanyGuidePage';
+import { AskHR } from './features/onboarding/AskHR';
 import { EmployeeDirectory } from './features/hr-admin/EmployeeDirectory';
 import { HybridScheduler } from './features/hr-admin/HybridScheduler';
 import { BackupRestore } from './features/hr-admin/BackupRestore';
+import { QuestionsInbox } from './features/hr-admin/QuestionsInbox';
 
 import { ThemeProvider } from './context/ThemeContext';
 
@@ -79,6 +81,14 @@ export const App: React.FC = () => {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/ask-hr"
+                element={
+                  <ProtectedRoute>
+                    <AskHR />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* HR Admin Protected Routes */}
               <Route 
@@ -97,13 +107,21 @@ export const App: React.FC = () => {
                   </ProtectedRoute>
                 } 
               />
-              <Route 
-                path="/admin/backup" 
+              <Route
+                path="/admin/backup"
                 element={
                   <ProtectedRoute requiresAdmin>
                     <BackupRestore />
                   </ProtectedRoute>
-                } 
+                }
+              />
+              <Route
+                path="/admin/questions"
+                element={
+                  <ProtectedRoute requiresAdmin>
+                    <QuestionsInbox />
+                  </ProtectedRoute>
+                }
               />
 
               {/* Fallback Redirection */}

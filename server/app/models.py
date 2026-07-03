@@ -1,5 +1,6 @@
 import uuid
-from sqlalchemy import Column, String, ForeignKey, Date, JSON, UniqueConstraint, Index, UUID, Boolean
+import datetime
+from sqlalchemy import Column, String, ForeignKey, Date, DateTime, JSON, UniqueConstraint, Index, UUID, Boolean
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -63,6 +64,25 @@ class ScheduleEntry(Base):
         UniqueConstraint("employee_id", "date", name="uq_schedule_entries_employee_date"),
         Index("idx_schedule_entries_employee_id", "employee_id"),
         Index("idx_schedule_entries_date", "date"),
+    )
+
+class Question(Base):
+    __tablename__ = "questions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    employee_id = Column(UUID(as_uuid=True), ForeignKey("employees.id", ondelete="CASCADE"), nullable=False)
+    subject = Column(String, nullable=False)
+    body = Column(String, nullable=False)
+    status = Column(String, nullable=False, default="open")
+    answer = Column(String, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.datetime.utcnow)
+    answered_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    employee = relationship("Employee")
+
+    __table_args__ = (
+        Index("idx_questions_employee_id", "employee_id"),
     )
 
 class RefreshToken(Base):

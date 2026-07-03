@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 from uuid import UUID
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
 class LoginRequest(BaseModel):
@@ -101,6 +101,27 @@ class BackupPayload(BaseModel):
     employees: list[BackupEmployeeInput]
     checklist_tasks: list[BackupChecklistTaskInput]
     schedule_entries: list[BackupScheduleEntryInput]
+
+class QuestionCreate(BaseModel):
+    subject: str = Field(min_length=1, max_length=200)
+    body: str = Field(min_length=1)
+
+class AnswerRequest(BaseModel):
+    answer: str = Field(min_length=1)
+
+class QuestionOut(BaseModel):
+    id: UUID
+    employee_id: UUID
+    employee_name: Optional[str] = None
+    subject: str
+    body: str
+    status: str
+    answer: Optional[str] = None
+    created_at: datetime
+    answered_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
 
 
 
