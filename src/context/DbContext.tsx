@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { initializeDb, getEmployees, getScheduler, saveEmployee, saveScheduler, Employee } from '../services/db';
+import { getEmployees, getScheduler, saveEmployee, saveScheduler, Employee } from '../services/db';
+import { useAuth } from './AuthContext';
 
 interface DbContextType {
   employees: Employee[];
@@ -13,6 +14,7 @@ interface DbContextType {
 const DbContext = createContext<DbContextType | undefined>(undefined);
 
 export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { currentUser } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [scheduler, setScheduler] = useState<Record<string, string[]>>({ '0': [], '1': [], '2': [], '3': [], '4': [] });
   const [isLoading, setIsLoading] = useState(true);
@@ -30,13 +32,14 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     }
   };
 
+  // Re-fetch whenever the signed-in identity changes -- otherwise switching
+  // accounts (including the "Switch to HR Admin/Employee" dev toggle) keeps
+  // showing whatever the very first fetch after app load happened to return,
+  // which can itself be a role-restricted 403 fallback captured before login
+  // finished.
   useEffect(() => {
-    const init = async () => {
-      await initializeDb();
-      await refreshData();
-    };
-    init();
-  }, []);
+    refreshData();
+  }, [currentUser?.id]);
 
   const addEmployee = async (employee: Employee) => {
     await saveEmployee(employee);
