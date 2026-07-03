@@ -76,7 +76,7 @@ async def test_signup_requires_min_length_password(client, db_session):
         "department": "Engineering",
         "hire_date": "2025-05-01",
         "password": "short",
-        "hybrid_preference": "HIBRID",
+        "hybrid_preference": "HYBRID",
     }
     response = await client.post("/auth/signup", json=signup_data)
     assert response.status_code == 422
@@ -92,7 +92,7 @@ async def test_signup_flow(client, db_session):
         "department": "Engineering",
         "hire_date": "2025-05-01",
         "password": "password123",
-        "hybrid_preference": "HIBRID"
+        "hybrid_preference": "HYBRID"
     }
     response = await client.post("/auth/signup", json=signup_data)
     assert response.status_code == 200

@@ -21,7 +21,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({ readOnly =
   const [roleName, setRoleName] = useState('');
   const [dept, setDept] = useState('Engineering');
   const [buddyId, setBuddyId] = useState('');
-  const [pref, setPref] = useState<'BIROU' | 'REMOTE' | 'HIBRID'>('HIBRID');
+  const [pref, setPref] = useState<'OFFICE' | 'REMOTE' | 'HYBRID'>('HYBRID');
   const [hireDate, setHireDate] = useState('2026-07-01');
   const [formError, setFormError] = useState('');
 
@@ -337,7 +337,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({ readOnly =
                 <div className="flex flex-col gap-1.5">
                   <label className="font-mono text-caption uppercase text-text-primary font-bold">Hybrid Preference</label>
                   <div className="flex gap-2">
-                    {['BIROU', 'REMOTE', 'HIBRID'].map(p => (
+                    {['OFFICE', 'REMOTE', 'HYBRID'].map(p => (
                       <button
                         key={p}
                         type="button"

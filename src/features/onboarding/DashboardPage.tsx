@@ -207,11 +207,11 @@ export const DashboardPage: React.FC = () => {
                 >
                   <span className="font-mono text-caption text-text-muted uppercase block">{day.slice(0, 3)}</span>
                   <div>
-                    <span className="text-body-sm font-bold block">{isUserScheduled ? '🏢 BIROU' : '🏠 REMOTE'}</span>
+                    <span className="text-body-sm font-bold block">{isUserScheduled ? '🏢 OFFICE' : '🏠 REMOTE'}</span>
                   </div>
 
                   <span className={`text-[9px] font-mono block ${isCapacityTight ? 'text-danger font-bold' : 'text-text-muted'}`}>
-                    Capacitate: {totalOccupancy}/130
+                    Capacity: {totalOccupancy}/130
                   </span>
 
                   <div className="mt-2 pt-2 border-t border-border flex flex-col gap-1 w-full text-left">
@@ -222,7 +222,7 @@ export const DashboardPage: React.FC = () => {
                       </span>
                     ) : isBuddyScheduled ? (
                       <span className="text-[10px] text-blue-400 font-mono bg-blue-950/20 px-1 border border-blue-500/20 w-fit rounded">
-                        🏢 LA BIROU
+                        🏢 IN OFFICE
                       </span>
                     ) : (
                       <span className="text-[10px] text-text-muted font-mono">REMOTE</span>
@@ -260,11 +260,11 @@ export const DashboardPage: React.FC = () => {
                 });
                 return overlapDays.length > 0 ? (
                   <div className="mt-2 text-caption border border-success text-success p-2 bg-green-50/50 font-mono text-center uppercase text-[10px] rounded-lg">
-                    Overlap zile: {overlapDays.map(d => d.slice(0, 3)).join(', ')}
+                    Overlap days: {overlapDays.map(d => d.slice(0, 3)).join(', ')}
                   </div>
                 ) : (
                   <div className="mt-2 text-caption border border-warning text-warning p-2 bg-yellow-50/5 font-mono text-center uppercase text-[10px] rounded-lg">
-                    Fără suprapuneri stabilite
+                    No overlapping office days scheduled
                   </div>
                 );
               })()}

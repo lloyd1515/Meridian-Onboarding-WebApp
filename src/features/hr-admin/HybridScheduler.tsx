@@ -295,7 +295,7 @@ export const HybridScheduler: React.FC = () => {
                 {/* Occupancy Counters */}
                 <div className="flex flex-col gap-1 select-none">
                   <span className={`font-mono text-caption uppercase font-bold ${isAtLimit ? 'text-danger' : 'text-text-primary'}`}>
-                    Ocupare: {totalOccupancy}/130 locuri
+                    Occupancy: {totalOccupancy}/130 seats
                   </span>
                   
                   {isAtLimit && (

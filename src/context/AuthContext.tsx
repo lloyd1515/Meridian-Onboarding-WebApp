@@ -44,7 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           department: me.department,
           hireDate: me.hire_date,
           buddyId: me.buddy_id,
-          hybridPreference: me.hybrid_preference || 'HIBRID',
+          hybridPreference: me.hybrid_preference || 'HYBRID',
           assignedDesk: me.assigned_desk,
         };
         const mappedRole = me.role === 'hr_admin' ? 'admin' : 'employee';

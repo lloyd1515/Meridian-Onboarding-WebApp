@@ -42,7 +42,7 @@ async def seed():
             department="HR",
             hire_date=datetime.date(2022, 1, 15),
             hashed_password=default_pwd,
-            hybrid_preference="HIBRID"
+            hybrid_preference="HYBRID"
         )
         session.add(admin)
 
@@ -55,7 +55,7 @@ async def seed():
             department="Engineering",
             hire_date=datetime.date(2023, 6, 10),
             hashed_password=default_pwd,
-            hybrid_preference="HIBRID",
+            hybrid_preference="HYBRID",
             assigned_desk="desk-25"
         )
         session.add(buddy)
@@ -72,7 +72,7 @@ async def seed():
             hire_date=datetime.date(2026, 7, 1),
             buddy_id=buddy.id,
             hashed_password=default_pwd,
-            hybrid_preference="BIROU",
+            hybrid_preference="OFFICE",
             assigned_desk="desk-24"
         )
         session.add(new_hire)
@@ -126,7 +126,7 @@ async def seed():
                 department=dept,
                 hire_date=h_date,
                 hashed_password=default_pwd,
-                hybrid_preference="BIROU" if (i % 3 == 0) else ("REMOTE" if i % 3 == 1 else "HIBRID")
+                hybrid_preference="OFFICE" if (i % 3 == 0) else ("REMOTE" if i % 3 == 1 else "HYBRID")
             )
             session.add(virtual_emp)
             virtual_employees.append(virtual_emp)

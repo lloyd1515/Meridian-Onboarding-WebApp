@@ -30,11 +30,11 @@ export const RelationshipExplorer: React.FC<RelationshipExplorerProps> = ({
   const handleCopySlackTemplate = (person: Employee, type: 'coffee' | 'question' | 'intro') => {
     let template = '';
     if (type === 'coffee') {
-      template = `Salut ${person.name.split(' ')[0]}! Ce zici de o cafea virtuală sau la birou săptămâna asta pentru a face cunoștință?`;
+      template = `Hi ${person.name.split(' ')[0]}! Want to grab a virtual or in-office coffee this week to get to know each other?`;
     } else if (type === 'question') {
-      template = `Salut ${person.name.split(' ')[0]}! Te pot deranja cu o scurtă întrebare legată de proiect când ai 5 minute libere? Mersi!`;
+      template = `Hi ${person.name.split(' ')[0]}! Could I ask you a quick project question whenever you have 5 minutes free? Thanks!`;
     } else if (type === 'intro') {
-      template = `Salutare! Numele meu este ${currentUser.name} și m-am alăturat recent echipei pe rolul de ${currentUser.role}. Mă bucur să te cunosc!`;
+      template = `Hi there! My name is ${currentUser.name} and I recently joined the team as ${currentUser.role}. Nice to meet you!`;
     }
 
     navigator.clipboard.writeText(template);
@@ -46,9 +46,9 @@ export const RelationshipExplorer: React.FC<RelationshipExplorerProps> = ({
     <div className="border border-border bg-surface p-6 rounded-2xl text-text-primary shadow-sm">
       <div className="flex flex-col gap-6">
         <div className="border-b border-border pb-3">
-          <h3 className="font-sans text-h3 font-bold text-text-primary">🌳 Relațiile Mele & Echipa (Org Chart Explorer)</h3>
+          <h3 className="font-sans text-h3 font-bold text-text-primary">🌳 My Relationships & Team (Org Chart Explorer)</h3>
           <p className="text-body-sm text-text-muted mt-1">
-            Vizualizează conexiunile tale principale din Meridian și accesează scurtături rapide de contact.
+            Visualize your key connections at Meridian and access quick contact shortcuts.
           </p>
         </div>
 
@@ -60,7 +60,7 @@ export const RelationshipExplorer: React.FC<RelationshipExplorerProps> = ({
                 onClick={() => setSelectedPerson(deptHead)}
                 className="cursor-pointer border border-border bg-surface px-4 py-2 text-center rounded-xl hover:border-accent transition-colors w-[220px] shadow-sm"
               >
-                <span className="text-[9px] font-mono border border-accent/20 px-1 py-0.5 text-accent uppercase bg-accent/5 rounded">Manager Direct / Head</span>
+                <span className="text-[9px] font-mono border border-accent/20 px-1 py-0.5 text-accent uppercase bg-accent/5 rounded">Direct Manager / Head</span>
                 <h4 className="font-sans font-bold text-body-sm mt-1 text-text-primary">{deptHead.name}</h4>
                 <p className="text-[10px] text-text-muted truncate font-sans">{deptHead.role}</p>
               </div>
@@ -75,7 +75,7 @@ export const RelationshipExplorer: React.FC<RelationshipExplorerProps> = ({
                 onClick={() => setSelectedPerson(buddy)}
                 className="cursor-pointer border border-border bg-surface px-4 py-2 text-center rounded-xl hover:border-accent transition-colors w-[180px] shadow-sm"
               >
-                <span className="text-[9px] font-mono border border-accent/20 px-1 py-0.5 text-accent uppercase bg-accent/5 rounded">Tech Buddy alocat</span>
+                <span className="text-[9px] font-mono border border-accent/20 px-1 py-0.5 text-accent uppercase bg-accent/5 rounded">Assigned Tech Buddy</span>
                 <h4 className="font-sans font-bold text-body-sm mt-1 text-text-primary">{buddy.name}</h4>
                 <p className="text-[10px] text-text-muted truncate font-sans">{buddy.role}</p>
               </div>
@@ -103,7 +103,7 @@ export const RelationshipExplorer: React.FC<RelationshipExplorerProps> = ({
           <div className="w-[1px] h-6 bg-border"></div>
 
           <div className="flex flex-col items-center">
-            <span className="text-[9px] font-mono text-text-muted uppercase tracking-widest mb-2">Colegi de Departament ({currentUser.department})</span>
+            <span className="text-[9px] font-mono text-text-muted uppercase tracking-widest mb-2">Department Colleagues ({currentUser.department})</span>
             <div className="flex flex-wrap gap-3 justify-center">
               {teammates.map(emp => (
                 <div 
@@ -123,10 +123,10 @@ export const RelationshipExplorer: React.FC<RelationshipExplorerProps> = ({
           <div className="border border-border bg-surface-muted p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 animate-fadeIn">
             <div>
               <h4 className="font-sans font-bold text-text-primary text-body">
-                📞 Contactează pe {selectedPerson.name}
+                📞 Contact {selectedPerson.name}
               </h4>
               <p className="text-body-sm text-text-muted mt-1">
-                Rol: {selectedPerson.role} | Email: <span className="text-text-primary font-mono select-all bg-surface px-1.5 py-0.5 border border-border rounded">{selectedPerson.email}</span>
+                Role: {selectedPerson.role} | Email: <span className="text-text-primary font-mono select-all bg-surface px-1.5 py-0.5 border border-border rounded">{selectedPerson.email}</span>
               </p>
             </div>
 
@@ -135,7 +135,7 @@ export const RelationshipExplorer: React.FC<RelationshipExplorerProps> = ({
                 onClick={() => handleCopySlackTemplate(selectedPerson, 'coffee')}
                 className="inline-flex items-center justify-between gap-2 px-3 py-1.5 border border-[#0B2A3D] text-[#0B2A3D] hover:bg-neutral-100 rounded-full transition-all text-caption font-semibold"
               >
-                <span>{copiedText === `${selectedPerson.id}-coffee` ? 'Copiat!' : '☕ Invită la Cafea'}</span>
+                <span>{copiedText === `${selectedPerson.id}-coffee` ? 'Copied!' : '☕ Invite for Coffee'}</span>
                 <span className="flex items-center justify-center w-4 h-4 rounded-full bg-[#0B2A3D] text-white">
                   <span className="material-symbols-outlined text-[10px]">
                     {copiedText === `${selectedPerson.id}-coffee` ? 'check' : 'arrow_forward'}
@@ -146,7 +146,7 @@ export const RelationshipExplorer: React.FC<RelationshipExplorerProps> = ({
                 onClick={() => handleCopySlackTemplate(selectedPerson, 'question')}
                 className="inline-flex items-center justify-between gap-2 px-3 py-1.5 border border-[#0B2A3D] text-[#0B2A3D] hover:bg-neutral-100 rounded-full transition-all text-caption font-semibold"
               >
-                <span>{copiedText === `${selectedPerson.id}-question` ? 'Copiat!' : '❓ Pune Întrebare'}</span>
+                <span>{copiedText === `${selectedPerson.id}-question` ? 'Copied!' : '❓ Ask a Question'}</span>
                 <span className="flex items-center justify-center w-4 h-4 rounded-full bg-[#0B2A3D] text-white">
                   <span className="material-symbols-outlined text-[10px]">
                     {copiedText === `${selectedPerson.id}-question` ? 'check' : 'arrow_forward'}
@@ -157,7 +157,7 @@ export const RelationshipExplorer: React.FC<RelationshipExplorerProps> = ({
                 onClick={() => handleCopySlackTemplate(selectedPerson, 'intro')}
                 className="inline-flex items-center justify-between gap-2 px-3 py-1.5 border border-[#0B2A3D] text-[#0B2A3D] hover:bg-neutral-100 rounded-full transition-all text-caption font-semibold"
               >
-                <span>{copiedText === `${selectedPerson.id}-intro` ? 'Copiat!' : '👋 Prezentare'}</span>
+                <span>{copiedText === `${selectedPerson.id}-intro` ? 'Copied!' : '👋 Introduce Yourself'}</span>
                 <span className="flex items-center justify-center w-4 h-4 rounded-full bg-[#0B2A3D] text-white">
                   <span className="material-symbols-outlined text-[10px]">
                     {copiedText === `${selectedPerson.id}-intro` ? 'check' : 'arrow_forward'}

@@ -22,7 +22,7 @@ export const LoginPage: React.FC = () => {
   const [signupSlackHandle, setSignupSlackHandle] = useState('');
   const [signupRole, setSignupRole] = useState('');
   const [signupDepartment, setSignupDepartment] = useState('Engineering');
-  const [signupHybridPreference, setSignupHybridPreference] = useState('HIBRID');
+  const [signupHybridPreference, setSignupHybridPreference] = useState('HYBRID');
   const [signupHireDate, setSignupHireDate] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -377,8 +377,8 @@ export const LoginPage: React.FC = () => {
                   onChange={(e) => setSignupHybridPreference(e.target.value)}
                   className="border border-border bg-white text-text-primary px-3 py-2.5 rounded-xl focus:outline-none focus:border-accent text-body transition-colors"
                 >
-                  <option value="HIBRID">HIBRID</option>
-                  <option value="BIROU">BIROU</option>
+                  <option value="HYBRID">HYBRID</option>
+                  <option value="OFFICE">OFFICE</option>
                   <option value="REMOTE">REMOTE</option>
                 </select>
               </div>

@@ -96,7 +96,7 @@ async def signup(response: Response, payload: SignupRequest, db: AsyncSession = 
         role=assigned_role,
         department=payload.department,
         hire_date=payload.hire_date,
-        hybrid_preference=payload.hybrid_preference or "HIBRID",
+        hybrid_preference=payload.hybrid_preference or "HYBRID",
         hashed_password=hashed,
     )
     db.add(user)

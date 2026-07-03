@@ -68,7 +68,7 @@ export const EmployeeSchema = z.object({
   department: z.string(),
   hireDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Hire date must be in YYYY-MM-DD format"),
   buddyId: z.string().nullable().optional(),
-  hybridPreference: z.enum(['BIROU', 'REMOTE', 'HIBRID']),
+  hybridPreference: z.enum(['OFFICE', 'REMOTE', 'HYBRID']),
   assignedDesk: z.string().nullable().optional(),
 });
 
@@ -113,7 +113,7 @@ function mapEmployeeToFrontend(emp: any): Employee {
     department: emp.department,
     hireDate: emp.hire_date,
     buddyId: emp.buddy_id,
-    hybridPreference: emp.hybrid_preference || 'HIBRID',
+    hybridPreference: emp.hybrid_preference || 'HYBRID',
     assignedDesk: emp.assigned_desk,
   };
 }
@@ -328,7 +328,7 @@ export const validateAndRestoreBackup = async (jsonString: string): Promise<Vali
       department: e.department,
       hire_date: e.hireDate,
       buddy_id: e.buddyId || null,
-      hybrid_preference: e.hybridPreference || 'HIBRID',
+      hybrid_preference: e.hybridPreference || 'HYBRID',
       assigned_desk: e.assignedDesk || null,
       hashed_password: e.hashed_password || '$argon2id$v=19$m=65536,t=3,p=2$supersecurepasswordplaceholder'
     }));

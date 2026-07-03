@@ -14,7 +14,7 @@ class SignupRequest(BaseModel):
     department: str
     hire_date: date
     password: str = Field(min_length=8)
-    hybrid_preference: Optional[str] = "HIBRID"
+    hybrid_preference: Optional[str] = "HYBRID"
 
 
 class EmployeeOut(BaseModel):
