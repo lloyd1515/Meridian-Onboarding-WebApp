@@ -1,15 +1,39 @@
 import React, { useState, useRef } from 'react';
-import { validateAndRestoreBackup, generateBackupExport } from '../../services/db';
+import { validateAndRestoreBackup, generateBackupExport, saveEmployee, EmployeeSchema } from '../../services/db';
 import { useDb } from '../../context/DbContext';
+
+type LogEntry = { type: 'error' | 'warning' | 'success'; message: string };
+
+const CSV_REQUIRED_HEADERS = ['name', 'email', 'slack_handle', 'role', 'department', 'hire_date', 'hybrid_preference'];
+const CSV_TEMPLATE = `name,email,slack_handle,role,department,hire_date,hybrid_preference,buddy_id
+Jordan Rivera,jordan.rivera@meridian.com,@jordan.rivera,Software Specialist,Engineering,2026-08-03,HYBRID,
+`;
+
+const parseCsv = (text: string): Record<string, string>[] => {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+  return lines.slice(1).map(line => {
+    const cells = line.split(',').map(c => c.trim());
+    const row: Record<string, string> = {};
+    headers.forEach((h, i) => { row[h] = cells[i] ?? ''; });
+    return row;
+  });
+};
 
 export const BackupRestore: React.FC = () => {
   const { refreshData } = useDb();
   const [dragActive, setDragActive] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [validateProgress, setValidateProgress] = useState(0);
-  const [logs, setLogs] = useState<{ type: 'error' | 'warning' | 'success'; message: string }[]>([]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+
+  const [csvDragActive, setCsvDragActive] = useState(false);
+  const [isImportingCsv, setIsImportingCsv] = useState(false);
+  const [csvLogs, setCsvLogs] = useState<LogEntry[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const csvInputRef = useRef<HTMLInputElement>(null);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -66,6 +90,107 @@ export const BackupRestore: React.FC = () => {
     if (e.target.files && e.target.files[0]) {
       await processJson(e.target.files[0]);
     }
+  };
+
+  const handleCsvDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setCsvDragActive(true);
+    } else if (e.type === "dragleave") {
+      setCsvDragActive(false);
+    }
+  };
+
+  const processCsv = async (file: File) => {
+    setIsImportingCsv(true);
+    setCsvLogs([]);
+
+    const text = await file.text();
+    const rows = parseCsv(text);
+
+    if (rows.length === 0) {
+      setCsvLogs([{ type: 'error', message: '❌ No data rows found. The file needs a header row plus at least one employee.' }]);
+      setIsImportingCsv(false);
+      return;
+    }
+
+    const missingHeaders = CSV_REQUIRED_HEADERS.filter(h => !(h in rows[0]));
+    if (missingHeaders.length > 0) {
+      setCsvLogs([{ type: 'error', message: `❌ Missing required column(s): ${missingHeaders.join(', ')}` }]);
+      setIsImportingCsv(false);
+      return;
+    }
+
+    const results: LogEntry[] = [];
+    let successCount = 0;
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowLabel = `Row ${i + 2}`; // +2: 1-indexed, plus the header row
+
+      const candidate = {
+        id: crypto.randomUUID(),
+        name: row.name,
+        email: row.email,
+        slackHandle: row.slack_handle,
+        role: row.role || 'Software Specialist',
+        department: row.department,
+        hireDate: row.hire_date,
+        buddyId: row.buddy_id || null,
+        hybridPreference: (row.hybrid_preference || 'HYBRID').toUpperCase(),
+        assignedDesk: null,
+      };
+
+      const parsed = EmployeeSchema.safeParse(candidate);
+      if (!parsed.success) {
+        results.push({ type: 'error', message: `❌ ${rowLabel}: ${parsed.error.issues.map(iss => iss.message).join('; ')}` });
+        continue;
+      }
+
+      try {
+        await saveEmployee(parsed.data);
+        successCount++;
+      } catch (err: any) {
+        results.push({ type: 'error', message: `❌ ${rowLabel} (${row.name || row.email}): ${err.message}` });
+      }
+    }
+
+    if (successCount > 0) {
+      results.unshift({ type: 'success', message: `✓ Imported ${successCount} of ${rows.length} row(s) successfully.` });
+      await refreshData();
+    } else {
+      results.unshift({ type: 'error', message: '❌ No rows imported.' });
+    }
+
+    setCsvLogs(results);
+    setIsImportingCsv(false);
+  };
+
+  const handleCsvDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setCsvDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      await processCsv(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleCsvFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      await processCsv(e.target.files[0]);
+    }
+    e.target.value = '';
+  };
+
+  const handleDownloadTemplate = () => {
+    const blob = new Blob([CSV_TEMPLATE], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'meridian_bulk_hire_template.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleExport = async () => {
@@ -168,7 +293,7 @@ export const BackupRestore: React.FC = () => {
               <ul className="font-mono text-caption text-text-muted list-disc list-inside flex flex-col gap-1.5 font-semibold">
                 <li>Schema: Meridian v2.1</li>
                 <li>Format: JSON file</li>
-                <li>Database: IndexedDB localForage</li>
+                <li>Database: PostgreSQL (via API)</li>
               </ul>
             </div>
             <button
@@ -183,6 +308,64 @@ export const BackupRestore: React.FC = () => {
           </div>
         </section>
       </div>
+
+      <section className="flex flex-col gap-3">
+        <div className="flex justify-between items-center border-b border-border pb-2.5">
+          <h3 className="text-h2 font-bold text-[#0B2A3D]">Bulk Hire Import (CSV)</h3>
+          <button
+            onClick={handleDownloadTemplate}
+            className="text-caption font-mono uppercase font-bold text-accent hover:underline select-none"
+          >
+            Download Template
+          </button>
+        </div>
+        <p className="text-body-sm text-text-muted -mt-1">
+          Columns: <code className="font-mono text-[12px] bg-slate-100 px-1 py-0.5 rounded">name, email, slack_handle, role, department, hire_date, hybrid_preference, buddy_id</code> (buddy_id is optional). Each row is validated and creates a real employee record with a seeded onboarding checklist, same as Add New Hire.
+        </p>
+
+        {csvLogs.length > 0 && (
+          <div className="flex flex-col gap-2">
+            {csvLogs.map((log, idx) => (
+              <div
+                key={idx}
+                className={`border-l-[4px] p-4 text-body-sm font-mono rounded-xl shadow-sm ${
+                  log.type === 'success'
+                    ? 'bg-green-50/50 border-success text-success'
+                    : log.type === 'warning'
+                    ? 'bg-amber-50/30 border-warning text-text-primary'
+                    : 'bg-red-50/40 border-danger text-danger'
+                }`}
+              >
+                <p className="font-sans text-[13px] leading-relaxed">{log.message}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div
+          onDragEnter={handleCsvDrag}
+          onDragOver={handleCsvDrag}
+          onDragLeave={handleCsvDrag}
+          onDrop={handleCsvDrop}
+          onClick={() => csvInputRef.current?.click()}
+          className={`border-2 border-dashed p-8 rounded-2xl text-center cursor-pointer flex flex-col items-center justify-center min-h-[160px] transition-all shadow-sm ${
+            csvDragActive ? 'border-accent bg-[#E9F1F3]/30' : 'border-border bg-white hover:border-accent hover:bg-slate-50'
+          }`}
+        >
+          <input
+            type="file"
+            ref={csvInputRef}
+            onChange={handleCsvFileChange}
+            accept=".csv"
+            className="hidden"
+          />
+          <span className="material-symbols-outlined text-[40px] text-text-muted mb-3 select-none">upload_file</span>
+          <p className="font-sans text-body-sm font-bold text-[#0B2A3D] uppercase tracking-wide select-none">
+            {isImportingCsv ? 'Importing...' : 'Drag & Drop CSV'}
+          </p>
+          <p className="text-caption text-text-muted mt-1 select-none">or click to browse local files</p>
+        </div>
+      </section>
     </div>
   );
 };

@@ -9,6 +9,8 @@ dist/
 chrome_out.log
 chrome_err.log
 .env
+.env.local
+.env.*.local
 
 # Browser profiles
 chrome_profile*/
