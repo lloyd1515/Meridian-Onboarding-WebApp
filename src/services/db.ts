@@ -143,10 +143,6 @@ function mapEmployeeToBackend(emp: Employee): any {
   };
 }
 
-export const initializeDb = async (forceReset = false): Promise<void> => {
-  return Promise.resolve();
-};
-
 export const getEmployees = async (): Promise<Employee[]> => {
   try {
     const res = await customFetch(`${API_URL}/employees`, credentialsOptions);
