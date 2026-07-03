@@ -5,3 +5,7 @@ venv
 .git
 .gemini
 dist
+chrome_profile*
+edge_profile*
+pw_chrome_dev
+vault

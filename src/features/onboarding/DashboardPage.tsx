@@ -60,9 +60,10 @@ export const DashboardPage: React.FC = () => {
         return;
       }
 
-      // Toggle on: Check occupancy rules
-      const baseOccupancy = 40 - (parseInt(dayIdx) * 5); // Simulated static base occupancy
-      const totalOccupancy = baseOccupancy + currentList.length;
+      // Toggle on: Check occupancy rules against the real scheduled count
+      // for this day (same value HybridScheduler.tsx shows) -- adding this
+      // employee makes it currentList.length + 1.
+      const totalOccupancy = currentList.length + 1;
 
       // Office capacity is 130 seats, warning threshold 124 (95% of 130) — must stay
       // in sync with the capacity cap in HybridScheduler.tsx (src/features/hr-admin/HybridScheduler.tsx).
@@ -186,8 +187,8 @@ export const DashboardPage: React.FC = () => {
               const isUserScheduled = currentUser ? dayIds.includes(currentUser.id) : false;
               const isBuddyScheduled = buddy ? dayIds.includes(buddy.id) : false;
               
-              const baseOccupancy = 40 - (idx * 5);
-              const totalOccupancy = baseOccupancy + dayIds.length;
+              // Real scheduled count for this day (same value HybridScheduler.tsx shows)
+              const totalOccupancy = dayIds.length;
               // Office capacity 130, warn at 124 — keep in sync with HybridScheduler.tsx
               const isCapacityTight = totalOccupancy >= 124;
 
