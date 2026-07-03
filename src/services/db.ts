@@ -113,6 +113,28 @@ export function isNewHire(emp: Employee, referenceDate: string): boolean {
   return new Date(emp.hireDate).getTime() > new Date(referenceDate).getTime();
 }
 
+// Task titles from server/app/core/checklist_templates.py's _CORE_TASKS --
+// mirrored here because milestone timing isn't stored as task data, just
+// implied by template order. Update both lists together if the templates
+// change. Anything not in these two sets is a department capstone task
+// (_DEPARTMENT_CAPSTONE), which is always a 90-day milestone.
+const THIRTY_DAY_TASK_TITLES = new Set([
+  'Sign employment contract',
+  'Configure work laptop',
+  'First meeting with Buddy',
+]);
+const SIXTY_DAY_TASK_TITLES = new Set([
+  'Install corporate security software',
+  'Information security training',
+  'Meet the team members',
+]);
+
+export function taskMilestoneDay(taskTitle: string): 30 | 60 | 90 {
+  if (THIRTY_DAY_TASK_TITLES.has(taskTitle)) return 30;
+  if (SIXTY_DAY_TASK_TITLES.has(taskTitle)) return 60;
+  return 90;
+}
+
 // Baseline scheduler date mapping helper
 const SCHEDULER_DATES = [
   '2026-07-06', // Monday (0)

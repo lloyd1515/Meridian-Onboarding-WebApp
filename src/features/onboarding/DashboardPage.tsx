@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useDb } from '../../context/DbContext';
-import { getEmployeeChecklist, Task, Employee } from '../../services/db';
+import { getEmployeeChecklist, taskMilestoneDay, Task, Employee } from '../../services/db';
 import { useNavigate } from 'react-router-dom';
 
 export const DashboardPage: React.FC = () => {
-  const { currentUser, isPreboarding } = useAuth();
+  const { currentUser, isPreboarding, simulationDate } = useAuth();
   const { employees, scheduler, updateScheduler } = useDb();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [buddy, setBuddy] = useState<Employee | null>(null);
@@ -33,6 +33,15 @@ export const DashboardPage: React.FC = () => {
   const progressPercent = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0;
   
   const nextTask = tasks.find(t => t.status === 'in_progress' || t.status === 'pending');
+
+  const daysSinceHire = currentUser
+    ? Math.floor((new Date(simulationDate).getTime() - new Date(currentUser.hireDate).getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
+  const currentMilestone: 30 | 60 | 90 = daysSinceHire <= 30 ? 30 : daysSinceHire <= 60 ? 60 : 90;
+  const openTasksInMilestone = (milestone: 30 | 60 | 90) =>
+    tasks.filter(t => taskMilestoneDay(t.title) === milestone && (t.status === 'pending' || t.status === 'in_progress' || t.status === 'blocked')).length;
+  const currentMilestoneOpenCount = openTasksInMilestone(currentMilestone);
+  const overdueMilestones = ([30, 60] as const).filter(m => m < currentMilestone && openTasksInMilestone(m) > 0);
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
@@ -119,6 +128,36 @@ export const DashboardPage: React.FC = () => {
           Here is a summary of your onboarding path and coordination details.
         </p>
       </div>
+
+      {!isPreboarding && tasks.length > 0 && (
+        <div className="border border-border bg-surface p-5 rounded-2xl shadow-sm flex items-start sm:items-center gap-4 flex-col sm:flex-row">
+          <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-accent/10 border border-accent/20 shrink-0">
+            <span className="material-symbols-outlined text-accent text-[22px]">notifications_active</span>
+          </div>
+          <div className="flex-grow">
+            <h3 className="font-mono text-caption uppercase text-text-muted">Day {Math.max(daysSinceHire, 0)} of onboarding</h3>
+            <p className="text-body font-semibold text-text-primary mt-0.5">
+              {currentMilestoneOpenCount > 0
+                ? `${currentMilestoneOpenCount} task${currentMilestoneOpenCount === 1 ? '' : 's'} from your ${currentMilestone}-day plan ${currentMilestoneOpenCount === 1 ? 'is' : 'are'} still open.`
+                : `You're on track — nothing outstanding from your ${currentMilestone}-day plan.`}
+            </p>
+            {overdueMilestones.length > 0 && (
+              <p className="text-caption text-danger font-mono mt-1">
+                Also catching up: {overdueMilestones.map(m => `${openTasksInMilestone(m)} task${openTasksInMilestone(m) === 1 ? '' : 's'} from your ${m}-day plan`).join(' and ')}.
+              </p>
+            )}
+          </div>
+          <button
+            onClick={() => navigate('/checklist')}
+            className="shrink-0 inline-flex items-center justify-between gap-3 px-5 py-2 bg-[#0B2A3D] hover:bg-[#102C3E] text-white rounded-full transition-all text-body-sm font-semibold shadow-sm"
+          >
+            <span>Review checklist</span>
+            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-white text-[#0B2A3D]">
+              <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+            </span>
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="border border-border bg-surface p-6 rounded-2xl flex flex-col justify-between min-h-[160px] shadow-sm">

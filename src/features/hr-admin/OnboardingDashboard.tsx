@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useDb } from '../../context/DbContext';
 import { useAuth } from '../../context/AuthContext';
-import { getChecklists, isNewHire, Task, Employee } from '../../services/db';
+import { getChecklists, isNewHire, taskMilestoneDay, Task, Employee } from '../../services/db';
 
 export const OnboardingDashboard: React.FC = () => {
   const { employees } = useDb();
@@ -76,9 +76,9 @@ export const OnboardingDashboard: React.FC = () => {
       }
     });
 
-    const tasks30 = checklist.filter(t => t.id.startsWith('task-1') || t.id.startsWith('task-2') || t.id.startsWith('task-3') || t.id.startsWith('task-5'));
-    const tasks60 = checklist.filter(t => t.id.startsWith('task-4') || t.id.startsWith('task-60'));
-    const tasks90 = checklist.filter(t => t.id.startsWith('task-90'));
+    const tasks30 = checklist.filter(t => taskMilestoneDay(t.title) === 30);
+    const tasks60 = checklist.filter(t => taskMilestoneDay(t.title) === 60);
+    const tasks90 = checklist.filter(t => taskMilestoneDay(t.title) === 90);
 
     const pct30 = tasks30.length > 0 ? (tasks30.filter(t => t.status === 'completed').length / tasks30.length) * 100 : 0;
     const pct60 = tasks60.length > 0 ? (tasks60.filter(t => t.status === 'completed').length / tasks60.length) * 100 : 0;
