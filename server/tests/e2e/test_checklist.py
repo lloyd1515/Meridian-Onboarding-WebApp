@@ -1,3 +1,4 @@
+import datetime
 import pytest
 from app.core.security import hash_password
 from app.models import Employee, ChecklistTask
@@ -83,3 +84,46 @@ async def test_checklist_workflows(client, db_session, authenticated_newhire):
     child_skipped = next(t for t in skipped_tasks if t["id"] == str(task2.id))
     assert child_skipped["status"] == "skipped"
     assert child_skipped["skip_reason"] == "Not applicable for my role"
+
+
+@pytest.mark.asyncio
+async def test_get_all_checklists_admin_only_and_aggregates_across_employees(client, db_session):
+    hashed = hash_password("password123")
+
+    employee_one = Employee(
+        name="Employee One", email="one@meridian.com", slack_handle="@one",
+        role="employee", department="Engineering", hire_date=datetime.date(2025, 1, 1),
+        hashed_password=hashed,
+    )
+    employee_two = Employee(
+        name="Employee Two", email="two@meridian.com", slack_handle="@two",
+        role="employee", department="Sales", hire_date=datetime.date(2025, 1, 1),
+        hashed_password=hashed,
+    )
+    admin = Employee(
+        name="Admin", email="admin.checklists@meridian.com", slack_handle="@admin",
+        role="hr_admin", department="HR", hire_date=datetime.date(2022, 1, 1),
+        hashed_password=hashed,
+    )
+    db_session.add_all([employee_one, employee_two, admin])
+    await db_session.flush()
+
+    db_session.add(ChecklistTask(employee_id=employee_one.id, title="Task A", status="pending", dependencies=[]))
+    db_session.add(ChecklistTask(employee_id=employee_two.id, title="Task B", status="completed", dependencies=[]))
+    await db_session.commit()
+
+    # Non-admin is forbidden
+    login_resp = await client.post("/auth/login", json={"email": "one@meridian.com", "password": "password123"})
+    assert login_resp.status_code == 200
+    forbidden_resp = await client.get("/checklists/all")
+    assert forbidden_resp.status_code == 403
+    await client.post("/auth/logout", headers={"X-CSRF-Token": login_resp.cookies["csrf_token"]})
+
+    # Admin sees tasks for every employee, not just their own
+    admin_login = await client.post("/auth/login", json={"email": "admin.checklists@meridian.com", "password": "password123"})
+    assert admin_login.status_code == 200
+    all_resp = await client.get("/checklists/all")
+    assert all_resp.status_code == 200
+    employee_ids = {t["employee_id"] for t in all_resp.json()}
+    assert str(employee_one.id) in employee_ids
+    assert str(employee_two.id) in employee_ids

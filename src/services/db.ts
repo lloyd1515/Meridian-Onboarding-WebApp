@@ -178,7 +178,31 @@ export const saveEmployee = async (employee: Employee): Promise<void> => {
 };
 
 export const getChecklists = async (): Promise<Record<string, Task[]>> => {
-  return {};
+  try {
+    const res = await customFetch(`${API_URL}/checklists/all`, credentialsOptions);
+    if (!res.ok) return {};
+    const data = await res.json();
+    const byEmployee: Record<string, Task[]> = {};
+    data.forEach((t: any) => {
+      const task: Task = {
+        id: t.id,
+        title: t.title,
+        description: t.description || '',
+        status: t.status,
+        skipReason: t.skip_reason,
+        blockedBy: t.blocked_by,
+        dependencies: t.dependencies || [],
+      };
+      if (!byEmployee[t.employee_id]) {
+        byEmployee[t.employee_id] = [];
+      }
+      byEmployee[t.employee_id].push(task);
+    });
+    return byEmployee;
+  } catch (e) {
+    console.error('Error fetching all checklists:', e);
+    return {};
+  }
 };
 
 export const getEmployeeChecklist = async (employeeId: string): Promise<Task[]> => {

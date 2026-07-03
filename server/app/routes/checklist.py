@@ -4,11 +4,21 @@ from sqlalchemy import select
 from typing import List
 from uuid import UUID
 from app.core.database import get_db
-from app.core.dependencies import get_current_user, get_effective_role
+from app.core.dependencies import get_current_user, get_effective_role, RoleChecker
 from app.models import Employee, ChecklistTask
 from app.schemas import ChecklistTaskOut, SkipRequest
 
 router = APIRouter(prefix="/checklists", tags=["Checklist"])
+
+@router.get("/all", response_model=List[ChecklistTaskOut])
+async def get_all_checklists(
+    db: AsyncSession = Depends(get_db),
+    current_user: Employee = Depends(RoleChecker(["hr_admin"]))
+):
+    """Every checklist task for every employee, for the HR onboarding dashboard."""
+    stmt = select(ChecklistTask).order_by(ChecklistTask.employee_id, ChecklistTask.title)
+    result = await db.execute(stmt)
+    return result.scalars().all()
 
 async def recursive_unblock_tasks(tasks: List[ChecklistTask]):
     updated = True
