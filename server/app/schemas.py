@@ -1,19 +1,19 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from uuid import UUID
 from datetime import date
 from typing import Optional
 
 class LoginRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
 
 class SignupRequest(BaseModel):
     name: str
-    email: str
+    email: EmailStr
     slack_handle: str
     department: str
     hire_date: date
-    password: str
+    password: str = Field(min_length=8)
     hybrid_preference: Optional[str] = "HIBRID"
 
 

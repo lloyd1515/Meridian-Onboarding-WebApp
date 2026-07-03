@@ -44,6 +44,45 @@ async def test_auth_flow(client, db_session):
     assert "access_token" not in client.cookies or client.cookies.get("access_token") == ""
 
 @pytest.mark.asyncio
+async def test_login_rejects_wrong_password(client, db_session):
+    hashed = hash_password("password123")
+    emp = Employee(
+        name="Test User",
+        email="wrongpass.user@meridian.com",
+        slack_handle="@wrongpass.user",
+        role="employee",
+        department="Engineering",
+        hire_date=datetime_date_helper(),
+        hashed_password=hashed,
+    )
+    db_session.add(emp)
+    await db_session.flush()
+
+    response = await client.post("/auth/login", json={
+        "email": "wrongpass.user@meridian.com",
+        "password": "not-the-right-password",
+    })
+    assert response.status_code == 401
+    assert "access_token" not in response.cookies
+
+
+@pytest.mark.asyncio
+async def test_signup_requires_min_length_password(client, db_session):
+    signup_data = {
+        "name": "Short Password User",
+        "email": "shortpass.user@meridian.com",
+        "slack_handle": "@shortpass.user",
+        "role": "employee",
+        "department": "Engineering",
+        "hire_date": "2025-05-01",
+        "password": "short",
+        "hybrid_preference": "HIBRID",
+    }
+    response = await client.post("/auth/signup", json=signup_data)
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_signup_flow(client, db_session):
     signup_data = {
         "name": "Signup User",

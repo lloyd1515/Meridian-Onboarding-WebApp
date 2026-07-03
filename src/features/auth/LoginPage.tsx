@@ -8,7 +8,7 @@ export const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const { theme, setTheme } = useTheme();
   const [email, setEmail] = useState('jane.doe@meridian.com');
-  const [password, setPassword] = useState('password');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [variant, setVariant] = useState<'split' | 'centered' | 'editorial'>('split');
   const [preboardingToggle, setPreboardingToggle] = useState(false);
@@ -17,6 +17,8 @@ export const LoginPage: React.FC = () => {
   const [isSignup, setIsSignup] = useState(false);
   const [signupName, setSignupName] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
+  const [signupPassword, setSignupPassword] = useState('');
+  const [signupPasswordConfirm, setSignupPasswordConfirm] = useState('');
   const [signupSlackHandle, setSignupSlackHandle] = useState('');
   const [signupRole, setSignupRole] = useState('');
   const [signupDepartment, setSignupDepartment] = useState('Engineering');
@@ -30,7 +32,7 @@ export const LoginPage: React.FC = () => {
       setError('Email must end with @meridian.com');
       return;
     }
-    const success = await login(email);
+    const success = await login(email, password);
     if (success) {
       if (email.includes('admin') || email === 'vlad.hr@meridian.com') {
         navigate('/admin/directory');
@@ -38,7 +40,7 @@ export const LoginPage: React.FC = () => {
         navigate('/dashboard');
       }
     } else {
-      setError("Authentication failed: Email address not registered.");
+      setError("Authentication failed: incorrect email or password.");
     }
   };
 
@@ -48,6 +50,16 @@ export const LoginPage: React.FC = () => {
 
     if (!signupEmail.endsWith('@meridian.com')) {
       setError('Email must end with @meridian.com');
+      return;
+    }
+
+    if (signupPassword.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
+
+    if (signupPassword !== signupPasswordConfirm) {
+      setError('Passwords do not match.');
       return;
     }
 
@@ -65,7 +77,7 @@ export const LoginPage: React.FC = () => {
           role: signupRole || 'employee',
           department: signupDepartment,
           hire_date: signupHireDate,
-          password: 'password123',
+          password: signupPassword,
           hybrid_preference: signupHybridPreference,
         }),
       });
@@ -76,7 +88,7 @@ export const LoginPage: React.FC = () => {
         return;
       }
 
-      const success = await login(signupEmail);
+      const success = await login(signupEmail, signupPassword);
       if (success) {
         navigate('/dashboard');
       } else {
@@ -272,6 +284,40 @@ export const LoginPage: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
+                <label className="font-mono text-caption text-text-primary uppercase font-bold" htmlFor="signupPassword">
+                  Password
+                </label>
+                <input
+                  id="signupPassword"
+                  type="password"
+                  required
+                  minLength={8}
+                  value={signupPassword}
+                  onChange={(e) => setSignupPassword(e.target.value)}
+                  placeholder="At least 8 characters"
+                  className="border border-border bg-white text-text-primary px-3 py-2.5 rounded-xl focus:outline-none focus:border-accent text-body transition-colors"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="font-mono text-caption text-text-primary uppercase font-bold" htmlFor="signupPasswordConfirm">
+                  Confirm Password
+                </label>
+                <input
+                  id="signupPasswordConfirm"
+                  type="password"
+                  required
+                  minLength={8}
+                  value={signupPasswordConfirm}
+                  onChange={(e) => setSignupPasswordConfirm(e.target.value)}
+                  placeholder="Repeat password"
+                  className="border border-border bg-white text-text-primary px-3 py-2.5 rounded-xl focus:outline-none focus:border-accent text-body transition-colors"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
                 <label className="font-mono text-caption text-text-primary uppercase font-bold" htmlFor="signupSlackHandle">
                   Slack Handle
                 </label>
@@ -380,12 +426,12 @@ export const LoginPage: React.FC = () => {
 
       <div className="mt-8 pt-6 border-t border-border text-center">
         <span className="text-caption text-text-muted block font-medium">
-          Quick Test Logins (Select Role):
+          Quick Test Logins (fills in the seeded demo password too):
         </span>
         <div className="mt-2 flex flex-col gap-2 text-caption text-text-primary font-mono bg-slate-50 p-3 rounded-xl border border-border text-left">
           <button
             type="button"
-            onClick={() => setEmail('jane.doe@meridian.com')}
+            onClick={() => { setEmail('jane.doe@meridian.com'); setPassword('password123'); }}
             className="flex items-center justify-between p-2 rounded bg-white border border-border hover:bg-slate-100 cursor-pointer transition-colors"
           >
             <span>👤 Preboardee / New Hire</span>
@@ -393,7 +439,7 @@ export const LoginPage: React.FC = () => {
           </button>
           <button
             type="button"
-            onClick={() => setEmail('alex.j@meridian.com')}
+            onClick={() => { setEmail('alex.j@meridian.com'); setPassword('password123'); }}
             className="flex items-center justify-between p-2 rounded bg-white border border-border hover:bg-slate-100 cursor-pointer transition-colors"
           >
             <span>🤝 Buddy / Engineer</span>
@@ -401,7 +447,7 @@ export const LoginPage: React.FC = () => {
           </button>
           <button
             type="button"
-            onClick={() => setEmail('vlad.hr@meridian.com')}
+            onClick={() => { setEmail('vlad.hr@meridian.com'); setPassword('password123'); }}
             className="flex items-center justify-between p-2 rounded bg-white border border-border hover:bg-slate-100 cursor-pointer transition-colors"
           >
             <span>👑 HR Admin</span>

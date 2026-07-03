@@ -14,9 +14,13 @@ interface AuthContextType {
   simulationDate: string;
   setRole: (role: 'employee' | 'admin') => void | Promise<void>;
   setSimulationDate: (date: string) => void;
-  login: (email: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
 }
+
+// Seed password used only by the labeled demo controls below (role-switch toggle,
+// quick-login buttons) — never used for a real user-submitted login/signup.
+const DEMO_SEED_PASSWORD = 'password123';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -71,14 +75,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const setRole = async (newRole: 'employee' | 'admin') => {
     const email = newRole === 'admin' ? 'vlad.hr@meridian.com' : 'jane.doe@meridian.com';
-    await login(email);
+    await login(email, DEMO_SEED_PASSWORD);
   };
 
   const setSimulationDate = (date: string) => {
     setSimulationDateState(date);
   };
 
-  const login = async (email: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<boolean> => {
     try {
       const res = await customFetch(`${API_URL}/auth/login`, {
         method: 'POST',
@@ -88,7 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
         body: JSON.stringify({
           email: email,
-          password: 'password123'
+          password: password
         }),
         ...credentialsOptions
       });
