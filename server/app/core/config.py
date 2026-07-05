@@ -10,11 +10,11 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = Field(
-        default="postgresql+asyncpg://meridian_user:meridian_secure_pass@localhost:5432/meridian_dev"
+        default="postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/postgres"
     )
 
     # JWT
-    JWT_SECRET: str = Field(default="supersecretlocaltokenkey123!")
+    JWT_SECRET: str = Field(default="placeholder_jwt_secret_key_change_me_in_production_min_32_chars")
     JWT_ALGORITHM: str = Field(default="HS256")
 
     # Rate Limiting
