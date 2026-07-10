@@ -59,3 +59,31 @@ async def test_scheduler_validation_rules(client, db_session, authenticated_user
     # John has 4 entries
     john_entries = [e for e in entries if e["employee_id"] == str(emp.id)]
     assert len(john_entries) == 4
+
+
+@pytest.mark.asyncio
+async def test_preboardee_cannot_book_office_days(client, db_session):
+    hashed = hash_password("password123")
+    emp = Employee(
+        name="Pre Scheduler",
+        email="pre.schedule@meridian.com",
+        slack_handle="@pre.schedule",
+        role="preboardee",
+        department="Engineering",
+        hire_date=datetime.date.today() + datetime.timedelta(days=3),
+        hashed_password=hashed,
+    )
+    db_session.add(emp)
+    await db_session.flush()
+
+    resp = await client.post("/auth/login", json={"email": "pre.schedule@meridian.com", "password": "password123"})
+    assert resp.status_code == 200
+    headers = {"X-CSRF-Token": resp.cookies["csrf_token"]}
+
+    booking = {"bookings": [{"date": "2026-07-20", "status": "office"}]}
+    submit = await client.post("/scheduler", json=booking, headers=headers)
+    assert submit.status_code == 403
+
+    # Viewing the shared schedule is still allowed.
+    view = await client.get("/scheduler")
+    assert view.status_code == 200
