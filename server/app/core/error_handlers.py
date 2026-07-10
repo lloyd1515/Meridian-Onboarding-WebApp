@@ -1,5 +1,6 @@
 from typing import Union
 from fastapi import FastAPI, Request, status
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
@@ -11,7 +12,9 @@ async def validation_exception_handler(request: Request, exc: Union[ValidationEr
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={
-            "detail": exc.errors(),
+            # jsonable_encoder: custom field_validator errors carry the raw
+            # ValueError in ctx, which json.dumps alone can't serialize.
+            "detail": jsonable_encoder(exc.errors()),
             "message": "Validation failed"
         }
     )

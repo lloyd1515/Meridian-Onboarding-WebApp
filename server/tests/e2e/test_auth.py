@@ -103,3 +103,20 @@ def datetime_date_helper():
     import datetime
     return datetime.date(2025, 1, 1)
 
+
+
+@pytest.mark.asyncio
+async def test_auth_rejects_non_meridian_email_domain(client, db_session):
+    signup_data = {
+        "name": "Outside R",
+        "email": "outsider@example.com",
+        "slack_handle": "@outsider",
+        "department": "Engineering",
+        "hire_date": "2026-08-01",
+        "password": "longenough123",
+    }
+    resp = await client.post("/auth/signup", json=signup_data)
+    assert resp.status_code == 422
+
+    resp = await client.post("/auth/login", json={"email": "outsider@example.com", "password": "whatever123"})
+    assert resp.status_code == 422

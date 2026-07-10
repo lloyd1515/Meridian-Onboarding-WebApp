@@ -58,3 +58,35 @@ async def test_add_new_hire_accepts_uuid_and_seeds_department_checklist(client, 
     titles = {t["title"] for t in tasks}
     assert "Shadow a client call" in titles  # Sales-specific capstone task
     assert "Submit first Pull Request (PR)" not in titles  # not Engineering
+
+
+@pytest.mark.asyncio
+async def test_employee_creation_rejects_invalid_enum_values_and_domain(client, db_session, authenticated_admin):
+    admin, csrf_token = authenticated_admin
+    headers = {"X-CSRF-Token": csrf_token}
+
+    base = {
+        "id": str(uuid.uuid4()),
+        "name": "Bad Input",
+        "email": "bad.input@meridian.com",
+        "slack_handle": "@bad.input",
+        "role": "employee",
+        "department": "Sales",
+        "hire_date": "2026-08-01",
+        "buddy_id": None,
+        "hybrid_preference": "HYBRID",
+        "assigned_desk": None,
+        "hashed_password": "irrelevant-placeholder",
+    }
+
+    # role outside the known set
+    resp = await client.post("/employees", json={**base, "role": "superadmin"}, headers=headers)
+    assert resp.status_code == 422
+
+    # hybrid_preference outside the known set
+    resp = await client.post("/employees", json={**base, "hybrid_preference": "SOMETIMES"}, headers=headers)
+    assert resp.status_code == 422
+
+    # non-company email domain
+    resp = await client.post("/employees", json={**base, "email": "bad.input@gmail.com"}, headers=headers)
+    assert resp.status_code == 422

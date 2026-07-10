@@ -1,11 +1,23 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from uuid import UUID
 from datetime import date, datetime
-from typing import Optional
+from typing import Literal, Optional
+
+# Mirrors the frontend's zod .endsWith("@meridian.com") rule (src/services/db.ts) —
+# this is an internal tool, only company addresses exist.
+def _require_meridian_domain(value: str) -> str:
+    if not value.lower().endswith("@meridian.com"):
+        raise ValueError("Email must be a @meridian.com address")
+    return value
+
+EmployeeRole = Literal["hr_admin", "employee", "preboardee", "buddy"]
+HybridPreference = Literal["OFFICE", "REMOTE", "HYBRID"]
 
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+    _domain = field_validator("email")(_require_meridian_domain)
 
 class SignupRequest(BaseModel):
     name: str
@@ -14,7 +26,9 @@ class SignupRequest(BaseModel):
     department: str
     hire_date: date
     password: str = Field(min_length=8)
-    hybrid_preference: Optional[str] = "HYBRID"
+    hybrid_preference: Optional[HybridPreference] = "HYBRID"
+
+    _domain = field_validator("email")(_require_meridian_domain)
 
 
 class EmployeeOut(BaseModel):
@@ -71,13 +85,15 @@ class BackupEmployeeInput(BaseModel):
     name: str
     email: str
     slack_handle: str
-    role: str
+    role: EmployeeRole
     department: str
     hire_date: date
     buddy_id: Optional[UUID] = None
-    hybrid_preference: Optional[str] = None
+    hybrid_preference: Optional[HybridPreference] = None
     assigned_desk: Optional[str] = None
     hashed_password: str
+
+    _domain = field_validator("email")(_require_meridian_domain)
 
 class BackupChecklistTaskInput(BaseModel):
     id: UUID
