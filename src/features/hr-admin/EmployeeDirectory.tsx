@@ -215,6 +215,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({ readOnly =
                         <div className="flex flex-col font-mono text-caption text-text-muted truncate">
                           <span>Buddy: {emp.buddyId || 'None'}</span>
                           <span className="text-[10px] text-accent font-bold">{emp.slackHandle}</span>
+                          <span className="text-[10px]">Desk: {emp.assignedDesk || 'Unassigned'}</span>
                         </div>
                       </div>
                     );

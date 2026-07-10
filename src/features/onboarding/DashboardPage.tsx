@@ -127,6 +127,11 @@ export const DashboardPage: React.FC = () => {
         <p className="text-body-lg text-text-muted">
           Here is a summary of your onboarding path and coordination details.
         </p>
+        {currentUser && (
+          <p className="font-mono text-caption uppercase text-text-muted mt-2">
+            Your desk: <span className="text-text-primary font-bold">{currentUser.assignedDesk || 'Not yet assigned'}</span>
+          </p>
+        )}
       </div>
 
       {!isPreboarding && tasks.length > 0 && (
