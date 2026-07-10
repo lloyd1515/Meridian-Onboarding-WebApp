@@ -1,3 +1,4 @@
+import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -68,7 +69,9 @@ async def get_employee_checklist(employee_id: UUID, db: AsyncSession = Depends(g
 async def complete_task(task_id: UUID, db: AsyncSession = Depends(get_db), current_user: Employee = Depends(get_current_user)):
     # Pre-boarding accounts can preview their checklist but not act on it —
     # onboarding tasks only become actionable from the hire date onward.
-    if get_effective_role(current_user) == "preboardee":
+    # Date-based (not role-based): a stale 'preboardee' role must not keep
+    # blocking someone whose start date has passed.
+    if current_user.hire_date > datetime.date.today():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Checklist tasks can only be completed from your start date onward"
@@ -92,7 +95,7 @@ async def complete_task(task_id: UUID, db: AsyncSession = Depends(get_db), curre
 @router.post("/{task_id}/skip", response_model=ChecklistTaskOut)
 async def skip_task(task_id: UUID, payload: SkipRequest, db: AsyncSession = Depends(get_db), current_user: Employee = Depends(get_current_user)):
     # Same pre-boarding gate as complete_task.
-    if get_effective_role(current_user) == "preboardee":
+    if current_user.hire_date > datetime.date.today():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Checklist tasks can only be skipped from your start date onward"

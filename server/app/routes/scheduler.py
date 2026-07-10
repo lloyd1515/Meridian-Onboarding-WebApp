@@ -42,8 +42,8 @@ async def submit_schedules(payload: SchedulerSubmit, db: AsyncSession = Depends(
     target_user = current_user
 
     # Pre-boarding accounts can view schedules but not book office days —
-    # same gate as the checklist actions (they haven't started yet).
-    if get_effective_role(current_user) == "preboardee":
+    # same date-based gate as the checklist actions (they haven't started yet).
+    if current_user.hire_date > datetime.date.today():
         raise HTTPException(status_code=403, detail="Office days can only be booked from your start date onward")
 
     if payload.employee_id and payload.employee_id != current_user.id:
