@@ -16,9 +16,14 @@ import { QuestionsInbox } from './features/hr-admin/QuestionsInbox';
 import { ThemeProvider } from './context/ThemeContext';
 
 // Protected Route wrapper that enforces pre-boarding locks
-const ProtectedRoute: React.FC<{ children: React.ReactNode; requiresAdmin?: boolean }> = ({ 
-  children, 
-  requiresAdmin = false 
+const ProtectedRoute: React.FC<{
+  children: React.ReactNode;
+  requiresAdmin?: boolean;
+  restrictedDuringPreboarding?: boolean;
+}> = ({
+  children,
+  requiresAdmin = false,
+  restrictedDuringPreboarding = false
 }) => {
   const { currentUser, role, isPreboarding } = useAuth();
 
@@ -30,8 +35,9 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requiresAdmin?: bool
     return <Navigate to="/dashboard" replace />;
   }
 
-  // Pre-boarding lock: prevent employee from viewing HR Directory or Admin tools
-  if (isPreboarding && (window.location.hash.includes('admin') || window.location.hash.includes('directory'))) {
+  // Pre-boarding lock: declared per-route (same pattern as requiresAdmin)
+  // instead of substring-matching the URL hash.
+  if (isPreboarding && restrictedDuringPreboarding) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -68,7 +74,7 @@ export const App: React.FC = () => {
               <Route
                 path="/directory"
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute restrictedDuringPreboarding>
                     <EmployeeDirectory readOnly />
                   </ProtectedRoute>
                 }
@@ -94,7 +100,7 @@ export const App: React.FC = () => {
               <Route 
                 path="/admin/directory" 
                 element={
-                  <ProtectedRoute requiresAdmin>
+                  <ProtectedRoute requiresAdmin restrictedDuringPreboarding>
                     <EmployeeDirectory />
                   </ProtectedRoute>
                 } 
@@ -102,7 +108,7 @@ export const App: React.FC = () => {
               <Route 
                 path="/admin/scheduler" 
                 element={
-                  <ProtectedRoute requiresAdmin>
+                  <ProtectedRoute requiresAdmin restrictedDuringPreboarding>
                     <HybridScheduler />
                   </ProtectedRoute>
                 } 
@@ -110,7 +116,7 @@ export const App: React.FC = () => {
               <Route
                 path="/admin/backup"
                 element={
-                  <ProtectedRoute requiresAdmin>
+                  <ProtectedRoute requiresAdmin restrictedDuringPreboarding>
                     <BackupRestore />
                   </ProtectedRoute>
                 }
@@ -118,7 +124,7 @@ export const App: React.FC = () => {
               <Route
                 path="/admin/questions"
                 element={
-                  <ProtectedRoute requiresAdmin>
+                  <ProtectedRoute requiresAdmin restrictedDuringPreboarding>
                     <QuestionsInbox />
                   </ProtectedRoute>
                 }
