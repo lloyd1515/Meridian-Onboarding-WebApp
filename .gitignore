@@ -44,7 +44,7 @@ test-results/
 playwright-report/
 
 # Internal planning / AI tooling — not part of the deliverable
-vault/
+Vault/
 TaskDescription/
 AGENTS.md
 MEMORY.md
