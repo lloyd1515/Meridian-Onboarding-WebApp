@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, and_, func
 from typing import List, Dict
 from uuid import UUID
+from app.core.constants import OFFICE_CAPACITY, OFFICE_CAPACITY_WARNING, MAX_OFFICE_DAYS_PER_WEEK
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, get_effective_role
 from app.models import Employee, ScheduleEntry
@@ -74,8 +75,8 @@ async def submit_schedules(payload: SchedulerSubmit, db: AsyncSession = Depends(
             weeks[monday] = weeks.get(monday, 0) + 1
 
     for monday, office_days in weeks.items():
-        if office_days > 3:
-            raise HTTPException(status_code=400, detail=f"Maximum 3 office days allowed per week (Week starting {monday})")
+        if office_days > MAX_OFFICE_DAYS_PER_WEEK:
+            raise HTTPException(status_code=400, detail=f"Maximum {MAX_OFFICE_DAYS_PER_WEEK} office days allowed per week (Week starting {monday})")
 
     warnings = []
     for d, status_val in new_bookings.items():
@@ -96,11 +97,13 @@ async def submit_schedules(payload: SchedulerSubmit, db: AsyncSession = Depends(
                     ScheduleEntry.employee_id != target_employee_id
                 )
             )
+            # `count` excludes the requester, so total-after-add is count + 1.
             count = await db.scalar(stmt_count) or 0
-            if count >= 130:
-                raise HTTPException(status_code=400, detail=f"Office capacity limit of 130 reached on {d}")
-            elif count >= 124:
-                warnings.append(f"Office occupancy on {d} is high ({count + 1} people).")
+            total_after_add = count + 1
+            if total_after_add > OFFICE_CAPACITY:
+                raise HTTPException(status_code=400, detail=f"Office capacity limit of {OFFICE_CAPACITY} reached on {d}")
+            elif total_after_add >= OFFICE_CAPACITY_WARNING:
+                warnings.append(f"Office occupancy on {d} is high ({total_after_add} people).")
 
     if target_user.buddy_id:
         stmt_buddy = select(ScheduleEntry.date).where(

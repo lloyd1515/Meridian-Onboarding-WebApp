@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useDb } from '../../context/DbContext';
 import { getEmployeeChecklist, taskMilestoneDay, Task, Employee } from '../../services/db';
+import { OFFICE_CAPACITY, OFFICE_CAPACITY_WARNING, MAX_OFFICE_DAYS_PER_WEEK } from '../../constants/scheduling';
 import { useNavigate } from 'react-router-dom';
 
 export const DashboardPage: React.FC = () => {
@@ -64,8 +65,8 @@ export const DashboardPage: React.FC = () => {
         }
       });
 
-      if (scheduledDaysCount >= 3) {
-        alert("🔒 Strict limit reached: This employee is already scheduled for 3 office days this week.");
+      if (scheduledDaysCount >= MAX_OFFICE_DAYS_PER_WEEK) {
+        alert(`🔒 Strict limit reached: This employee is already scheduled for ${MAX_OFFICE_DAYS_PER_WEEK} office days this week.`);
         return;
       }
 
@@ -74,16 +75,14 @@ export const DashboardPage: React.FC = () => {
       // employee makes it currentList.length + 1.
       const totalOccupancy = currentList.length + 1;
 
-      // Office capacity is 130 seats, warning threshold 124 (95% of 130) — must stay
-      // in sync with the capacity cap in HybridScheduler.tsx (src/features/hr-admin/HybridScheduler.tsx).
-      // Absolute daily capacity limit is 130
-      if (totalOccupancy >= 130) {
-        alert('🔒 Capacity limit reached! The office cannot exceed 130 employees on any single day.');
+      // Reject only when the total after adding would exceed the cap
+      // (day 130 itself is fillable — same rule as HybridScheduler/backend).
+      if (totalOccupancy > OFFICE_CAPACITY) {
+        alert(`🔒 Capacity limit reached! The office cannot exceed ${OFFICE_CAPACITY} employees on any single day.`);
         return;
       }
 
-      // 95% capacity buffer alert (95% of 130 is 123.5 -> 124)
-      if (totalOccupancy >= 124) {
+      if (totalOccupancy >= OFFICE_CAPACITY_WARNING) {
         alert('⚠️ ALERT: Capacity threshold reached. No more employees can be scheduled on this day.');
       }
       
@@ -233,8 +232,7 @@ export const DashboardPage: React.FC = () => {
               
               // Real scheduled count for this day (same value HybridScheduler.tsx shows)
               const totalOccupancy = dayIds.length;
-              // Office capacity 130, warn at 124 — keep in sync with HybridScheduler.tsx
-              const isCapacityTight = totalOccupancy >= 124;
+              const isCapacityTight = totalOccupancy >= OFFICE_CAPACITY_WARNING;
 
               return (
                 <button
@@ -255,7 +253,7 @@ export const DashboardPage: React.FC = () => {
                   </div>
 
                   <span className={`text-[9px] font-mono block ${isCapacityTight ? 'text-danger font-bold' : 'text-text-muted'}`}>
-                    Capacity: {totalOccupancy}/130
+                    Capacity: {totalOccupancy}/{OFFICE_CAPACITY}
                   </span>
 
                   <div className="mt-2 pt-2 border-t border-border flex flex-col gap-1 w-full text-left">

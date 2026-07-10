@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useDb } from '../../context/DbContext';
 import { useAuth } from '../../context/AuthContext';
 import { Employee, isNewHire } from '../../services/db';
+import { OFFICE_CAPACITY, OFFICE_CAPACITY_WARNING, MAX_OFFICE_DAYS_PER_WEEK } from '../../constants/scheduling';
 
 interface ScheduledEmployee extends Employee {
   isNewHire: boolean;
@@ -50,14 +51,13 @@ export const HybridScheduler: React.FC = () => {
       return count;
     }, 0);
 
-    if (scheduledDaysCount >= 3) {
-      alert("🔒 Strict limit reached: This employee is already scheduled for 3 office days this week.");
+    if (scheduledDaysCount >= MAX_OFFICE_DAYS_PER_WEEK) {
+      alert(`🔒 Strict limit reached: This employee is already scheduled for ${MAX_OFFICE_DAYS_PER_WEEK} office days this week.`);
       return;
     }
 
-    // Cap daily capacity at 130
-    if (targetList.length + 1 > 130) {
-      alert("🔒 Capacity limit reached! The office cannot exceed 130 employees on any single day.");
+    if (targetList.length + 1 > OFFICE_CAPACITY) {
+      alert(`🔒 Capacity limit reached! The office cannot exceed ${OFFICE_CAPACITY} employees on any single day.`);
       return;
     }
 
@@ -279,7 +279,7 @@ export const HybridScheduler: React.FC = () => {
             const empIds = columns[colIdx] || [];
             
             const totalOccupancy = empIds.length;
-            const isAtLimit = totalOccupancy >= 124; // 95% of 130 capacity is 123.5 -> 124
+            const isAtLimit = totalOccupancy >= OFFICE_CAPACITY_WARNING;
 
             return (
               <div
@@ -297,7 +297,7 @@ export const HybridScheduler: React.FC = () => {
                 {/* Occupancy Counters */}
                 <div className="flex flex-col gap-1 select-none">
                   <span className={`font-mono text-caption uppercase font-bold ${isAtLimit ? 'text-danger' : 'text-text-primary'}`}>
-                    Occupancy: {totalOccupancy}/130 seats
+                    Occupancy: {totalOccupancy}/{OFFICE_CAPACITY} seats
                   </span>
                   
                   {isAtLimit && (

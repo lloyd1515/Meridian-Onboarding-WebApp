@@ -87,3 +87,46 @@ async def test_preboardee_cannot_book_office_days(client, db_session):
     # Viewing the shared schedule is still allowed.
     view = await client.get("/scheduler")
     assert view.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_capacity_boundaries_warn_at_124_reject_above_130(client, db_session, authenticated_user):
+    emp, csrf_token = authenticated_user
+    headers = {"X-CSRF-Token": csrf_token}
+
+    async def seed_office_day(day: datetime.date, occupants: int):
+        others = [
+            Employee(
+                name=f"Occupant {day.isoformat()}-{i}",
+                email=f"occupant.{day.isoformat()}.{i}@meridian.com",
+                slack_handle=f"@occ.{day.isoformat()}.{i}",
+                role="employee",
+                department="Engineering",
+                hire_date=datetime.date(2025, 1, 1),
+                hashed_password="x",
+            )
+            for i in range(occupants)
+        ]
+        db_session.add_all(others)
+        await db_session.flush()
+        db_session.add_all([ScheduleEntry(employee_id=o.id, date=day, status="office") for o in others])
+
+    # Three Mondays in different weeks so the 3-day/week rule never interferes.
+    quiet_day = datetime.date(2026, 8, 3)     # 122 others -> total 123, below warning
+    warn_day = datetime.date(2026, 8, 10)     # 123 others -> total 124, warning fires
+    full_day = datetime.date(2026, 8, 17)     # 130 others -> total 131, over cap
+    await seed_office_day(quiet_day, 122)
+    await seed_office_day(warn_day, 123)
+    await seed_office_day(full_day, 130)
+    await db_session.commit()
+
+    resp = await client.post("/scheduler", json={"bookings": [{"date": quiet_day.isoformat(), "status": "office"}]}, headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()["warnings"] == []
+
+    resp = await client.post("/scheduler", json={"bookings": [{"date": warn_day.isoformat(), "status": "office"}]}, headers=headers)
+    assert resp.status_code == 200
+    assert any("high (124 people)" in w for w in resp.json()["warnings"])
+
+    resp = await client.post("/scheduler", json={"bookings": [{"date": full_day.isoformat(), "status": "office"}]}, headers=headers)
+    assert resp.status_code == 400
