@@ -1,5 +1,7 @@
 # 📝 Changelog & Commit Log
 
+> **Note for reviewers (English):** this file is a working log from the project's earliest phase, before `git` was available on the original development machine — each entry below describes one small, isolated change, in Romanian, newest first. Once git was set up, real commits took over and this file was intentionally frozen as-is rather than rewritten: it's part of the honest history of the project. For everything after the git cutover, see `git log`.
+
 Deoarece utilitarul `git` nu este instalat sau adăugat în `%PATH%` pe sistemul gazdă, vom folosi acest fișier pentru a documenta și structura fiecare „commit” (modificare mică, izolată) pe care o efectuăm pe parcursul implementării.
 
 ---
