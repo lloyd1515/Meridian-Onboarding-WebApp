@@ -124,6 +124,37 @@ class BackupPayload(BaseModel):
     checklist_tasks: list[BackupChecklistTaskInput]
     schedule_entries: list[BackupScheduleEntryInput]
 
+class ChecklistTemplateCreate(BaseModel):
+    department: Optional[str] = None
+    title: str
+    description: Optional[str] = None
+    default_status: str = "pending"
+    milestone_offset_days: int
+    dependency_indices: Optional[list[int]] = None
+    sort_order: int = 0
+
+class ChecklistTemplateUpdate(BaseModel):
+    department: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    default_status: Optional[str] = None
+    milestone_offset_days: Optional[int] = None
+    dependency_indices: Optional[list[int]] = None
+    sort_order: Optional[int] = None
+
+class ChecklistTemplateOut(BaseModel):
+    id: UUID
+    department: Optional[str] = None
+    title: str
+    description: Optional[str] = None
+    default_status: str
+    milestone_offset_days: int
+    dependency_indices: Optional[list[int]] = None
+    sort_order: int
+
+    class Config:
+        from_attributes = True
+
 class QuestionCreate(BaseModel):
     subject: str = Field(min_length=1, max_length=200)
     body: str = Field(min_length=1)

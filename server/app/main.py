@@ -38,7 +38,7 @@ if settings.BACKEND_CORS_ORIGINS:
 register_error_handlers(app)
 
 # Include routes
-from app.routes import auth, employees, checklist, scheduler, backup, questions
+from app.routes import auth, employees, checklist, scheduler, backup, questions, checklist_templates
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(employees.router)
@@ -46,6 +46,7 @@ app.include_router(checklist.router)
 app.include_router(scheduler.router)
 app.include_router(backup.router)
 app.include_router(questions.router)
+app.include_router(checklist_templates.router)
 
 @app.get("/")
 async def root():
