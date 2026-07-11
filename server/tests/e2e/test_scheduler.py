@@ -1,6 +1,9 @@
 import pytest
 import datetime
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from app.core.security import hash_password
+from app.main import app
 from app.models import Employee, ScheduleEntry
 
 @pytest.fixture
@@ -131,3 +134,54 @@ async def test_capacity_boundaries_warn_at_124_reject_above_130(client, db_sessi
 
     resp = await client.post("/scheduler", json={"bookings": [{"date": full_day.isoformat(), "status": "office"}]}, headers=headers)
     assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_bulk_scheduler_save_not_rate_limited(client, db_session, authenticated_user):
+    """Regression test for the HR bulk-save-vs-rate-limit bug: HybridScheduler.tsx's
+    save flow POSTs to /scheduler once per employee, sequentially. With the full
+    210-employee seed dataset that's ~210 requests from one HR session, which used
+    to blow past the general 60-requests/60s IP rate limit and silently drop most
+    of the saves. /scheduler now has its own, much more generous limiter
+    (SCHEDULER_RATE_LIMIT_MAX_REQUESTS) that isn't touched by tightening the
+    general one, so simulate the general limit being far smaller than 210 and
+    confirm all 210 sequential scheduler POSTs still succeed."""
+    emp, csrf_token = authenticated_user
+    headers = {"X-CSRF-Token": csrf_token}
+
+    original_limiter = app.state.limiter
+    app.state.limiter = Limiter(
+        key_func=get_remote_address,
+        default_limits=["5/60second"],
+        enabled=True,
+    )
+    original_scheduler_limiter = app.state.scheduler_limiter
+    app.state.scheduler_limiter = Limiter(
+        key_func=get_remote_address,
+        default_limits=["1000/60second"],
+        enabled=True,
+    )
+    try:
+        for i in range(210):
+            day = datetime.date(2027, 1, 4) + datetime.timedelta(days=(i % 5))
+            resp = await client.post(
+                "/scheduler",
+                json={"bookings": [{"date": day.isoformat(), "status": "remote"}]},
+                headers=headers,
+            )
+            assert resp.status_code == 200, f"request {i} failed: {resp.status_code} {resp.text}"
+
+        # A request on a route NOT exempted from the general limiter should
+        # still be rate limited -- proving the tightened general limiter was
+        # actually active and this isn't a false pass from both limiters
+        # being disabled.
+        blocked = None
+        for _ in range(10):
+            r = await client.get("/health/live")
+            if r.status_code == 429:
+                blocked = r
+                break
+        assert blocked is not None, "general limiter should still apply to non-/scheduler routes"
+    finally:
+        app.state.limiter = original_limiter
+        app.state.scheduler_limiter = original_scheduler_limiter

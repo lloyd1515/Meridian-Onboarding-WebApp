@@ -22,6 +22,15 @@ limiter = Limiter(
     enabled=settings.ENVIRONMENT != "testing",
 )
 
+# /scheduler is a bulk, authenticated hr_admin operation (not a public/
+# brute-forceable endpoint like auth), so it gets its own, much more
+# generous limiter -- see SCHEDULER_RATE_LIMIT_MAX_REQUESTS in config.py.
+scheduler_limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=[f"{settings.SCHEDULER_RATE_LIMIT_MAX_REQUESTS}/{settings.RATE_LIMIT_WINDOW_SECONDS}second"],
+    enabled=settings.ENVIRONMENT != "testing",
+)
+
 async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
     logger.warning("Rate limit exceeded", client=get_remote_address(request))
     return JSONResponse(
@@ -41,9 +50,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     We only need the global (undecorated) limit here, which doesn't
     require resolving the route handler at all, so check it directly."""
     async def dispatch(self, request: Request, call_next):
-        if request.app.state.limiter.enabled:
+        limiter = (
+            request.app.state.scheduler_limiter
+            if request.url.path.startswith("/scheduler")
+            else request.app.state.limiter
+        )
+        if limiter.enabled:
             try:
-                request.app.state.limiter._check_request_limit(request, None, True)
+                limiter._check_request_limit(request, None, True)
             except RateLimitExceeded as exc:
                 return await rate_limit_exceeded_handler(request, exc)
         return await call_next(request)
@@ -64,6 +78,7 @@ app = FastAPI(
 
 # Rate limiting (global, keyed by client IP)
 app.state.limiter = limiter
+app.state.scheduler_limiter = scheduler_limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 app.add_middleware(RateLimitMiddleware)
 

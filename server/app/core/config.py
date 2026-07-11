@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     # Rate Limiting
     RATE_LIMIT_MAX_REQUESTS: int = Field(default=60)
     RATE_LIMIT_WINDOW_SECONDS: int = Field(default=60)
+    # /scheduler is a bulk, authenticated hr_admin operation: HybridScheduler.tsx
+    # saves the whole seed dataset (~210 employees) as one POST per employee,
+    # which blows past the 60/60s brute-force-protection limit meant for public/
+    # auth endpoints. Give it its own, much more generous budget instead.
+    SCHEDULER_RATE_LIMIT_MAX_REQUESTS: int = Field(default=1000)
 
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = Field(default=["http://localhost:5173", "http://127.0.0.1:5173"])
