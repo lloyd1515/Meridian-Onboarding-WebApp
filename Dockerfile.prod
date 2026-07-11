@@ -1,0 +1,31 @@
+# Stage 1: build the static assets
+FROM node:20-slim AS builder
+
+WORKDIR /app
+
+# Baked in at build time: Vite inlines import.meta.env.VITE_* into the
+# compiled JS, so this can't be a runtime env var like it is for the backend.
+ARG VITE_API_URL=http://127.0.0.1:8090
+ENV VITE_API_URL=$VITE_API_URL
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+RUN npm run build
+
+# Stage 2: serve the built dist/ as static files
+# HashRouter is in use (see src/App.tsx), so there's no client-side route to
+# fall back to a single index.html for -- a plain static file server is enough.
+FROM node:20-slim AS runner
+
+WORKDIR /app
+
+RUN npm install -g serve@14
+
+COPY --from=builder --chown=node:node /app/dist ./dist
+
+EXPOSE 3000
+USER node
+
+CMD ["serve", "-s", "dist", "-l", "3000"]

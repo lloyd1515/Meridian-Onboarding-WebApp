@@ -1,0 +1,28 @@
+# Production override for the frontend service.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
+#
+# Swaps the frontend from the dev server (Dockerfile.dev, live-reload bind
+# mounts) to a production static build (Dockerfile.prod, nginx-free "serve"
+# static server). db and backend are untouched -- they're already prod-grade.
+version: '3.8'
+
+services:
+  backend:
+    environment:
+      # The static build is served from a different origin/port (8080) than
+      # the dev server (5173) -- widen CORS to allow it alongside dev.
+      - BACKEND_CORS_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173","http://localhost:8080"]
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+      args:
+        VITE_API_URL: http://localhost:8090
+    environment: !override
+      - VITE_API_URL=http://localhost:8090
+    ports: !override
+      - "8080:3000"
+    volumes: !reset []
