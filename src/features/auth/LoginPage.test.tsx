@@ -47,8 +47,24 @@ describe('LoginPage sign-in', () => {
     await user.click(screen.getByRole('button', { name: /authenticate/i }));
 
     expect(mockLogin).toHaveBeenCalledTimes(1);
-    expect(mockLogin).toHaveBeenCalledWith('jane.doe@meridian.com', 'correct-horse-battery-staple');
-    expect(mockLogin).not.toHaveBeenCalledWith('jane.doe@meridian.com', 'password123');
+    expect(mockLogin).toHaveBeenCalledWith('jane.doe@meridian.com', 'correct-horse-battery-staple', false);
+    expect(mockLogin).not.toHaveBeenCalledWith('jane.doe@meridian.com', 'password123', false);
+  });
+
+  // Regression test: the "Simulate Pre-boarding Mode" checkbox used to be
+  // pure decoration (local state, never read anywhere). It must now flow
+  // into login() so AuthContext can move the simulation date before the
+  // account's hire date.
+  it('passes the "Simulate Pre-boarding Mode" checkbox state into login()', async () => {
+    mockLogin.mockResolvedValue(true);
+    const user = userEvent.setup();
+    render(<LoginPage />);
+
+    await user.type(screen.getByLabelText(/password/i), 'password123');
+    await user.click(screen.getByLabelText(/simulate pre-boarding mode/i));
+    await user.click(screen.getByRole('button', { name: /authenticate/i }));
+
+    expect(mockLogin).toHaveBeenCalledWith('jane.doe@meridian.com', 'password123', true);
   });
 
   it('shows an error and does not navigate when login fails', async () => {

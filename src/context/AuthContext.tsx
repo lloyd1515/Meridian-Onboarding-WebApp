@@ -14,8 +14,17 @@ interface AuthContextType {
   simulationDate: string;
   setRole: (role: 'employee' | 'admin') => void | Promise<void>;
   setSimulationDate: (date: string) => void;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string, simulatePreboarding?: boolean) => Promise<boolean>;
   logout: () => void;
+}
+
+// Today, in the app's YYYY-MM-DD format -- the real clock the server gates
+// pre-boarding writes by (see the hire_date checks in checklist.py/scheduler.py).
+// Defaulting simulationDate to today instead of a fixed past date keeps the
+// UI's "Pre-boarding" badge in sync with server-side enforcement for whichever
+// seeded account is actually pre-boarding relative to the real date.
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
 }
 
 // Seed password used only by the labeled demo controls below (role-switch toggle,
@@ -27,7 +36,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<Employee | null>(null);
   const [role, setRoleState] = useState<'employee' | 'admin'>('employee');
-  const [simulationDate, setSimulationDateState] = useState<string>('2026-06-25');
+  const [simulationDate, setSimulationDateState] = useState<string>(todayIso);
   const [isPreboarding, setIsPreboarding] = useState<boolean>(true);
 
   const syncSession = async () => {
@@ -82,7 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSimulationDateState(date);
   };
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string, simulatePreboarding: boolean = false): Promise<boolean> => {
     try {
       const res = await customFetch(`${API_URL}/auth/login`, {
         method: 'POST',
@@ -98,7 +107,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (res.ok) {
+        const loggedInEmployee = await res.json();
         await syncSession();
+
+        // "Simulate Pre-boarding Mode" checkbox on the login page: move the
+        // simulation date to a few days before this account's real hire date
+        // so the pre-boarding flows are demoable even for an account whose
+        // hire date has already passed. Leaves simulationDate untouched when
+        // unchecked, so a manually-set date (top bar) survives a login.
+        if (simulatePreboarding && loggedInEmployee?.hire_date) {
+          const preboardingDate = new Date(loggedInEmployee.hire_date);
+          preboardingDate.setUTCDate(preboardingDate.getUTCDate() - 3);
+          setSimulationDateState(preboardingDate.toISOString().slice(0, 10));
+        }
+
         return true;
       }
       return false;

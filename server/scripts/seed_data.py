@@ -62,14 +62,21 @@ async def seed():
         await session.flush() # Flush to get buddy ID
 
         # 3. Jane Doe (New Hire / Preboardee)
-        # Note: In PRD / db.ts, Jane Doe starts on 2026-07-01
+        # Relative to the seeding date, not a fixed calendar date -- the brief's
+        # premise is "your first day starts in 3 days", and the server gates
+        # pre-boarding writes by the real clock (checklist.py/scheduler.py
+        # hire_date checks). A fixed past date silently stopped being
+        # pre-boarding the moment it slipped into the past, which desynced
+        # from the UI's simulation-date badge (see AuthContext.tsx). This way
+        # Jane stays a genuine pre-boarding demo account no matter when the
+        # database is seeded.
         new_hire = Employee(
             name="Jane Doe",
             email="jane.doe@meridian.com",
             slack_handle="@jane.doe",
             role="preboardee",
             department="Engineering",
-            hire_date=datetime.date(2026, 7, 1),
+            hire_date=datetime.date.today() + datetime.timedelta(days=3),
             buddy_id=buddy.id,
             hashed_password=default_pwd,
             hybrid_preference="OFFICE",

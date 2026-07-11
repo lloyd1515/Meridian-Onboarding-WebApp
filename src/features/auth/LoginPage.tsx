@@ -32,7 +32,7 @@ export const LoginPage: React.FC = () => {
       setError('Email must end with @meridian.com');
       return;
     }
-    const success = await login(email, password);
+    const success = await login(email, password, preboardingToggle);
     if (success) {
       if (email.includes('admin') || email === 'vlad.hr@meridian.com') {
         navigate('/admin/directory');
