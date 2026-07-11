@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useDb } from '../../context/DbContext';
-import { getEmployeeChecklist, saveEmployeeChecklist, Task, Employee } from '../../services/db';
+import { getEmployeeChecklist, saveEmployeeChecklist, isTaskOverdue, Task, Employee } from '../../services/db';
 
 export const OnboardingChecklist: React.FC = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, simulationDate } = useAuth();
   const { employees } = useDb();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
@@ -325,6 +325,7 @@ export const OnboardingChecklist: React.FC = () => {
           }
 
           const blocker = task.blockedBy ? tasks.find(t => t.id === task.blockedBy) : null;
+          const isOverdue = isTaskOverdue(task, simulationDate);
 
           return (
             <div key={task.id} id={task.id} className={`relative mb-8 transition-all ${durationClass}`}>
@@ -353,12 +354,20 @@ export const OnboardingChecklist: React.FC = () => {
                     </h3>
                   </div>
 
-                  {isBlocked && blocker && (
-                    <span className="font-mono text-[10px] text-danger bg-danger/10 border border-danger/20 px-2 py-1 uppercase tracking-wider shrink-0 flex items-center gap-1 rounded-full">
-                      <span className="material-symbols-outlined text-[12px]">lock</span>
-                      BLOCKED BY BUDDY
-                    </span>
-                  )}
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    {isBlocked && blocker && (
+                      <span className="font-mono text-[10px] text-danger bg-danger/10 border border-danger/20 px-2 py-1 uppercase tracking-wider flex items-center gap-1 rounded-full">
+                        <span className="material-symbols-outlined text-[12px]">lock</span>
+                        BLOCKED BY BUDDY
+                      </span>
+                    )}
+                    {isOverdue && (
+                      <span className="font-mono text-[10px] text-white bg-danger px-2 py-1 uppercase tracking-wider flex items-center gap-1 rounded-full">
+                        <span className="material-symbols-outlined text-[12px]">warning</span>
+                        Overdue
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div 
