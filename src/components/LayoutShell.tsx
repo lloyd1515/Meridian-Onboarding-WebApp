@@ -8,7 +8,7 @@ interface LayoutShellProps {
 }
 
 export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
-  const { role, isPreboarding, simulationDate, setSimulationDate, setRole, currentUser } = useAuth();
+  const { role, isPreboarding, simulationDate, setSimulationDate, setRole, currentUser, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -88,7 +88,7 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
           </button>
 
           <button
-            onClick={() => navigate('/login')}
+            onClick={() => { logout(); navigate('/login'); }}
             className="flex items-center gap-1 text-text-muted hover:text-danger transition-colors text-[11px] font-mono"
           >
             <span className="material-symbols-outlined text-[14px]">logout</span>
