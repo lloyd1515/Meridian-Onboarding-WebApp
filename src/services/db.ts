@@ -347,6 +347,52 @@ export const saveEmployeeChecklist = async (employeeId: string, tasks: Task[]): 
   }
 };
 
+export interface BuddyStuckTask {
+  id: string;
+  title: string;
+  status: string;
+  dueDate: string | null;
+}
+
+export interface BuddyHireEntry {
+  employee: {
+    id: string;
+    name: string;
+    department: string;
+    hireDate: string;
+  };
+  stuckTasks: BuddyStuckTask[];
+  totalTasks: number;
+  completedTasks: number;
+}
+
+export const getBuddyView = async (): Promise<BuddyHireEntry[]> => {
+  try {
+    const res = await customFetch(`${API_URL}/employees/me/buddy-view`, credentialsOptions);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.hires.map((h: any) => ({
+      employee: {
+        id: h.employee.id,
+        name: h.employee.name,
+        department: h.employee.department,
+        hireDate: h.employee.hire_date,
+      },
+      stuckTasks: h.stuck_tasks.map((t: any) => ({
+        id: t.id,
+        title: t.title,
+        status: t.status,
+        dueDate: t.due_date,
+      })),
+      totalTasks: h.total_tasks,
+      completedTasks: h.completed_tasks,
+    }));
+  } catch (e) {
+    console.error('Error fetching buddy view:', e);
+    return [];
+  }
+};
+
 export const getScheduler = async (): Promise<Record<string, string[]>> => {
   const columns: Record<string, string[]> = {
     '0': [], '1': [], '2': [], '3': [], '4': []

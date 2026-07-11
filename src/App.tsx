@@ -8,6 +8,7 @@ import { DashboardPage } from './features/onboarding/DashboardPage';
 import { OnboardingChecklist } from './features/onboarding/OnboardingChecklist';
 import { CompanyGuidePage } from './features/onboarding/CompanyGuidePage';
 import { AskHR } from './features/onboarding/AskHR';
+import { BuddyViewPage } from './features/onboarding/BuddyViewPage';
 import { EmployeeDirectory } from './features/hr-admin/EmployeeDirectory';
 import { HybridScheduler } from './features/hr-admin/HybridScheduler';
 import { BackupRestore } from './features/hr-admin/BackupRestore';
@@ -93,6 +94,14 @@ export const App: React.FC = () => {
                 element={
                   <ProtectedRoute>
                     <AskHR />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/buddy"
+                element={
+                  <ProtectedRoute restrictedDuringPreboarding>
+                    <BuddyViewPage />
                   </ProtectedRoute>
                 }
               />

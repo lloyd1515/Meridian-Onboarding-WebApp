@@ -321,6 +321,26 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
                       Send HR a question and get an answer here once they reply.
                     </div>
                   </a>
+
+                  <a
+                    href="#/buddy"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate('/buddy');
+                      setActiveDropdown(null);
+                    }}
+                    className="group flex flex-col gap-1.5 p-3 -m-3 hover:bg-slate-50 transition-all duration-200 rounded"
+                  >
+                    <div className="font-sans font-bold text-body text-[#0B2A3D] group-hover:text-accent transition-colors flex items-center gap-1.5">
+                      My Buddy View
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity text-accent text-body-sm">
+                        →
+                      </span>
+                    </div>
+                    <div className="text-body-sm text-text-muted leading-relaxed">
+                      Mentoring a new hire? See their progress and stuck tasks here.
+                    </div>
+                  </a>
                 </div>
               </div>
             </div>
@@ -515,6 +535,12 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
                     className="text-left font-semibold text-[#0B2A3D] hover:text-accent py-1 text-body-sm"
                   >
                     Ask HR
+                  </button>
+                  <button
+                    onClick={() => navigate('/buddy')}
+                    className="text-left font-semibold text-[#0B2A3D] hover:text-accent py-1 text-body-sm"
+                  >
+                    My Buddy View
                   </button>
                 </div>
               </div>
