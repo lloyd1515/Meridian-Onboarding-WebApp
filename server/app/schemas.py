@@ -186,6 +186,30 @@ class QuestionOut(BaseModel):
     class Config:
         from_attributes = True
 
+class BuddyHireSummary(BaseModel):
+    id: UUID
+    name: str
+    department: str
+    hire_date: date
+
+    class Config:
+        from_attributes = True
+
+class BuddyStuckTask(BaseModel):
+    id: UUID
+    title: str
+    status: str
+    due_date: Optional[date] = None
+
+class BuddyViewEntry(BaseModel):
+    employee: BuddyHireSummary
+    stuck_tasks: list[BuddyStuckTask]
+    total_tasks: int
+    completed_tasks: int
+
+class BuddyViewResponse(BaseModel):
+    hires: list[BuddyViewEntry]
+
 class AuditLogOut(BaseModel):
     id: UUID
     actor_employee_id: Optional[UUID] = None

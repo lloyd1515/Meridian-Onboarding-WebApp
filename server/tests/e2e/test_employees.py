@@ -2,7 +2,7 @@ import uuid
 import pytest
 import datetime
 from app.core.security import hash_password
-from app.models import Employee
+from app.models import Employee, ChecklistTask
 
 
 @pytest.fixture
@@ -237,3 +237,85 @@ async def test_employee_creation_rejects_invalid_enum_values_and_domain(client, 
     # non-company email domain
     resp = await client.post("/employees", json={**base, "email": "bad.input@gmail.com"}, headers=headers)
     assert resp.status_code == 422
+
+
+@pytest.fixture
+async def authenticated_buddy(client, db_session):
+    hashed = hash_password("password123")
+    buddy = Employee(
+        name="Buddy Account",
+        email="buddy.account@meridian.com",
+        slack_handle="@buddy.account",
+        role="employee",
+        department="Engineering",
+        hire_date=datetime.date(2022, 1, 15),
+        hashed_password=hashed,
+    )
+    db_session.add(buddy)
+    await db_session.flush()
+
+    login_data = {"email": "buddy.account@meridian.com", "password": "password123"}
+    resp = await client.post("/auth/login", json=login_data)
+    assert resp.status_code == 200
+    csrf_token = resp.cookies["csrf_token"]
+    return buddy, csrf_token
+
+
+@pytest.mark.asyncio
+async def test_buddy_view_returns_empty_list_for_non_buddy(client, db_session, authenticated_buddy):
+    buddy, _ = authenticated_buddy
+
+    resp = await client.get("/employees/me/buddy-view")
+    assert resp.status_code == 200
+    assert resp.json() == {"hires": []}
+
+
+@pytest.mark.asyncio
+async def test_buddy_view_lists_hires_and_flags_stuck_tasks(client, db_session, authenticated_buddy):
+    buddy, _ = authenticated_buddy
+
+    today = datetime.date.today()
+    hire = Employee(
+        name="Mentored Hire",
+        email="mentored.hire@meridian.com",
+        slack_handle="@mentored.hire",
+        role="employee",
+        department="Sales",
+        hire_date=today - datetime.timedelta(days=10),
+        buddy_id=buddy.id,
+        hashed_password=hash_password("password123"),
+    )
+    db_session.add(hire)
+    await db_session.flush()
+
+    completed_task = ChecklistTask(
+        employee_id=hire.id, title="Sign contract", status="completed", dependencies=[],
+    )
+    blocked_task = ChecklistTask(
+        employee_id=hire.id, title="Install security software", status="blocked", dependencies=[],
+    )
+    overdue_task = ChecklistTask(
+        employee_id=hire.id, title="Meet the team", status="pending", dependencies=[],
+        due_date=today - datetime.timedelta(days=2),
+    )
+    upcoming_task = ChecklistTask(
+        employee_id=hire.id, title="Submit first PR", status="pending", dependencies=[],
+        due_date=today + datetime.timedelta(days=5),
+    )
+    db_session.add_all([completed_task, blocked_task, overdue_task, upcoming_task])
+    await db_session.commit()
+
+    resp = await client.get("/employees/me/buddy-view")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body["hires"]) == 1
+
+    entry = body["hires"][0]
+    assert entry["employee"]["id"] == str(hire.id)
+    assert entry["employee"]["name"] == "Mentored Hire"
+    assert entry["employee"]["department"] == "Sales"
+    assert entry["total_tasks"] == 4
+    assert entry["completed_tasks"] == 1
+
+    stuck_titles = {t["title"] for t in entry["stuck_tasks"]}
+    assert stuck_titles == {"Install security software", "Meet the team"}

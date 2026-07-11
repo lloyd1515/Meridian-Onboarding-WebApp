@@ -1,11 +1,13 @@
+import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from typing import List
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, RoleChecker
 from app.models import Employee
-from app.schemas import EmployeeOut, BackupEmployeeInput, EmployeeUpdate
+from app.schemas import EmployeeOut, BackupEmployeeInput, EmployeeUpdate, BuddyViewResponse, BuddyViewEntry, BuddyStuckTask
 from uuid import UUID
 from app.core.security import hash_password
 from app.core.checklist_templates import seed_checklist_tasks
@@ -15,6 +17,41 @@ router = APIRouter(prefix="/employees", tags=["Employees"])
 @router.get("/me", response_model=EmployeeOut)
 async def get_me(current_user: Employee = Depends(get_current_user)):
     return current_user
+
+@router.get("/me/buddy-view", response_model=BuddyViewResponse)
+async def get_buddy_view(
+    db: AsyncSession = Depends(get_db),
+    current_user: Employee = Depends(get_current_user)
+):
+    # Any employee referenced as someone else's buddy_id -- the "buddies"
+    # backref on Employee (models.py) is the other side of that self-FK.
+    # There is no separate "buddy" role: a buddy is just an employee looked
+    # up this way.
+    stmt = (
+        select(Employee)
+        .where(Employee.buddy_id == current_user.id)
+        .options(selectinload(Employee.tasks))
+        .order_by(Employee.name)
+    )
+    result = await db.execute(stmt)
+    hires = result.scalars().all()
+
+    today = datetime.date.today()
+    entries = []
+    for hire in hires:
+        stuck_tasks = [
+            BuddyStuckTask(id=t.id, title=t.title, status=t.status, due_date=t.due_date)
+            for t in hire.tasks
+            if t.status == "blocked" or (t.due_date is not None and t.due_date < today and t.status != "completed")
+        ]
+        entries.append(BuddyViewEntry(
+            employee=hire,
+            stuck_tasks=stuck_tasks,
+            total_tasks=len(hire.tasks),
+            completed_tasks=sum(1 for t in hire.tasks if t.status == "completed"),
+        ))
+
+    return BuddyViewResponse(hires=entries)
 
 @router.get("", response_model=List[EmployeeOut])
 async def list_employees(
