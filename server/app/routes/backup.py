@@ -1,16 +1,49 @@
 import datetime
+from collections import deque
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, text
 from app.core.database import get_db
 from app.core.dependencies import RoleChecker
 from app.models import Employee, ChecklistTask, ScheduleEntry
-from app.schemas import BackupPayload
+from app.schemas import BackupChecklistTaskInput, BackupPayload
 
 router = APIRouter(prefix="/backup", tags=["Backup & Restore"])
 
 # Endpoint is restricted to hr_admin only
 admin_dependency = Depends(RoleChecker(["hr_admin"]))
+
+
+def _topo_sort_tasks_by_blocked_by(
+    tasks: list[BackupChecklistTaskInput],
+) -> list[BackupChecklistTaskInput]:
+    """Order tasks so that a task's blocked_by target (if present in this same
+    batch) is inserted before the task itself, satisfying the checklist_tasks
+    self-referential FK on Postgres (SQLite does not enforce this, which is
+    why a payload-order bug here was invisible in the pytest suite)."""
+    by_id = {t.id: t for t in tasks}
+    in_degree = {t.id: 0 for t in tasks}
+    blocks = {t.id: [] for t in tasks}  # blocked_by target -> tasks waiting on it
+    for t in tasks:
+        if t.blocked_by is not None and t.blocked_by in by_id:
+            in_degree[t.id] += 1
+            blocks[t.blocked_by].append(t.id)
+
+    queue = deque(tid for tid, degree in in_degree.items() if degree == 0)
+    ordered = []
+    while queue:
+        tid = queue.popleft()
+        ordered.append(by_id[tid])
+        for dependent_id in blocks[tid]:
+            in_degree[dependent_id] -= 1
+            if in_degree[dependent_id] == 0:
+                queue.append(dependent_id)
+
+    if len(ordered) != len(tasks):
+        raise ValueError(
+            "Checklist task backup contains a blocked_by cycle; cannot determine insert order."
+        )
+    return ordered
 
 @router.get("/export", dependencies=[admin_dependency])
 async def export_database(db: AsyncSession = Depends(get_db)):
@@ -121,8 +154,11 @@ async def restore_database(payload: BackupPayload, db: AsyncSession = Depends(ge
                 raise ValueError(f"Integrity check failed: Buddy ID {emp.buddy_id} for Employee {emp.name} does not exist.")
                 
         # Populate Checklist Tasks
+        # Sort by blocked_by dependency first: the FK is a real, enforced
+        # constraint on Postgres, so a task must not be inserted before the
+        # task it's blocked_by references.
         task_map = {}
-        for t_data in payload.checklist_tasks:
+        for t_data in _topo_sort_tasks_by_blocked_by(payload.checklist_tasks):
             if t_data.employee_id not in employee_map:
                 raise ValueError(f"Integrity check failed: Checklist task {t_data.title} points to non-existent employee {t_data.employee_id}.")
                 

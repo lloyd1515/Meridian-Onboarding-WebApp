@@ -102,3 +102,68 @@ async def test_backup_export_restore_preserves_due_date_fields(client, db_sessio
     assert restored.due_date == due_date
     assert restored.completed_at == completed_at
     assert restored.milestone_offset_days == 30
+
+
+@pytest.mark.asyncio
+async def test_backup_restore_orders_blocked_by_before_dependent_task(
+    client, db_session, authenticated_admin
+):
+    """checklist_tasks.blocked_by is a real, enforced FK on Postgres (see
+    the create_tables migration). If a task's blocked_by target appears
+    LATER than the task in the restore payload, a naive payload-order
+    insert violates the FK. The restore handler must topologically sort
+    the batch instead. (SQLite doesn't enforce this by default, which is
+    why the pre-fix bug was invisible here -- conftest now turns on
+    PRAGMA foreign_keys=ON so this test actually exercises the constraint.)
+    """
+    admin, csrf_token = authenticated_admin
+    headers = {"X-CSRF-Token": csrf_token}
+
+    export_resp = await client.get("/backup/export")
+    assert export_resp.status_code == 200
+    backup_data = export_resp.json()
+
+    import uuid
+
+    blocker_id = str(uuid.uuid4())
+    dependent_id = str(uuid.uuid4())
+
+    # Intentionally reversed: the dependent task (blocked_by=blocker_id)
+    # appears BEFORE the task it depends on in the payload array.
+    backup_data["checklist_tasks"] = [
+        {
+            "id": dependent_id,
+            "employee_id": str(admin.id),
+            "title": "Dependent task",
+            "description": None,
+            "status": "blocked",
+            "skip_reason": None,
+            "blocked_by": blocker_id,
+            "dependencies": None,
+            "due_date": None,
+            "completed_at": None,
+            "milestone_offset_days": None,
+        },
+        {
+            "id": blocker_id,
+            "employee_id": str(admin.id),
+            "title": "Blocker task",
+            "description": None,
+            "status": "pending",
+            "skip_reason": None,
+            "blocked_by": None,
+            "dependencies": None,
+            "due_date": None,
+            "completed_at": None,
+            "milestone_offset_days": None,
+        },
+    ]
+
+    restore_resp = await client.post("/backup/restore", json=backup_data, headers=headers)
+    assert restore_resp.status_code == 200
+    assert restore_resp.json()["tasks_restored"] == 2
+
+    dependent = await db_session.get(ChecklistTask, uuid.UUID(dependent_id))
+    blocker = await db_session.get(ChecklistTask, uuid.UUID(blocker_id))
+    assert dependent is not None and blocker is not None
+    assert dependent.blocked_by == blocker.id

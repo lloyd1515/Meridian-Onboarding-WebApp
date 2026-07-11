@@ -1,6 +1,7 @@
 import asyncio
 import pytest
 import pytest_asyncio
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -93,6 +94,18 @@ async def test_engine():
         poolclass=StaticPool,
         future=True,
     )
+
+    # SQLite doesn't enforce FK constraints unless explicitly told to.
+    # Production runs on Postgres, where checklist_tasks.blocked_by and
+    # employees.buddy_id are real, enforced FKs -- enable the same
+    # enforcement here so tests can actually catch FK-ordering bugs instead
+    # of silently passing on the (weaker) default SQLite behavior.
+    @event.listens_for(engine.sync_engine, "connect")
+    def _enable_sqlite_fk(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
     yield engine
     await engine.dispose()
 
