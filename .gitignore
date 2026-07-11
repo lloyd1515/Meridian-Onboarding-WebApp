@@ -23,7 +23,7 @@ pw_chrome_dev/
 .idea/
 
 # Local agents and temporary files
-.omg/
+.omc/
 .gemini/
 
 # Python virtual environments
