@@ -2,13 +2,16 @@ import datetime
 
 import pytest
 
-from app.core.checklist_templates import default_tasks_for, seed_checklist_tasks, _DEPARTMENT_CAPSTONE
+from app.core.checklist_templates import default_tasks_for, seed_checklist_tasks
 from app.models import Employee
 
+_DEPARTMENTS = ["Engineering", "Sales", "Marketing", "Finance", "HR", "Unknown Department"]
 
-@pytest.mark.parametrize("department", list(_DEPARTMENT_CAPSTONE.keys()) + ["Unknown Department"])
-def test_default_tasks_for_returns_valid_milestone_offsets(department):
-    tasks = default_tasks_for(department)
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("department", _DEPARTMENTS)
+async def test_default_tasks_for_returns_valid_milestone_offsets(db_session, department):
+    tasks = await default_tasks_for(db_session, department)
     assert len(tasks) > 0
     for task in tasks:
         assert task["milestone_offset_days"] in (30, 60, 90)
