@@ -123,6 +123,10 @@ class BackupPayload(BaseModel):
     employees: list[BackupEmployeeInput]
     checklist_tasks: list[BackupChecklistTaskInput]
     schedule_entries: list[BackupScheduleEntryInput]
+    # Typed confirmation for this destructive truncate-and-reinsert operation
+    # (Item 5b) -- the caller must type the literal phrase "RESTORE", checked
+    # in the route handler before any destructive work begins.
+    confirmation_phrase: str
 
 class ChecklistTemplateCreate(BaseModel):
     department: Optional[str] = None

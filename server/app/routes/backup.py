@@ -13,6 +13,10 @@ router = APIRouter(prefix="/backup", tags=["Backup & Restore"])
 # Endpoint is restricted to hr_admin only
 admin_dependency = Depends(RoleChecker(["hr_admin"]))
 
+# Typed-confirmation phrase the caller must supply to perform a restore
+# (Item 5b -- replaces relying solely on the frontend's window.confirm()).
+RESTORE_CONFIRMATION_PHRASE = "RESTORE"
+
 
 def _topo_sort_tasks_by_blocked_by(
     tasks: list[BackupChecklistTaskInput],
@@ -51,7 +55,7 @@ async def export_database(db: AsyncSession = Depends(get_db)):
     employees = (await db.execute(select(Employee))).scalars().all()
     tasks = (await db.execute(select(ChecklistTask))).scalars().all()
     schedules = (await db.execute(select(ScheduleEntry))).scalars().all()
-    
+
     # Format to match backup schema
     exported_employees = []
     for emp in employees:
@@ -68,7 +72,7 @@ async def export_database(db: AsyncSession = Depends(get_db)):
             "assigned_desk": emp.assigned_desk,
             "hashed_password": emp.hashed_password
         })
-        
+
     exported_tasks = []
     for t in tasks:
         exported_tasks.append({
@@ -84,7 +88,7 @@ async def export_database(db: AsyncSession = Depends(get_db)):
             "completed_at": t.completed_at.isoformat() if t.completed_at else None,
             "milestone_offset_days": t.milestone_offset_days
         })
-        
+
     exported_schedules = []
     for s in schedules:
         exported_schedules.append({
@@ -93,7 +97,7 @@ async def export_database(db: AsyncSession = Depends(get_db)):
             "date": s.date.isoformat(),
             "status": s.status
         })
-        
+
     return {
         "version": "1.0",
         "exported_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -109,7 +113,13 @@ async def restore_database(payload: BackupPayload, db: AsyncSession = Depends(ge
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unsupported backup version: {payload.version}. Expected 1.0."
         )
-        
+
+    if payload.confirmation_phrase != RESTORE_CONFIRMATION_PHRASE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Confirmation phrase mismatch. Type '{RESTORE_CONFIRMATION_PHRASE}' to confirm this destructive restore."
+        )
+
     try:
         # We start a transaction block. Inside FastAPI dependencies, db session is already in a transaction.
         # But we want to lock tables first.
@@ -118,14 +128,14 @@ async def restore_database(payload: BackupPayload, db: AsyncSession = Depends(ge
             await db.execute(text(
                 "LOCK TABLE employees, checklist_tasks, schedule_entries IN ACCESS EXCLUSIVE MODE"
             ))
-            
+
         # 2. Truncate Tables Cascade (Order of deletion: child tables first, then parent tables)
         # Note: CASCADE in SQL handles dependencies, but using delete() queries in SQLAlchemy is safer.
         await db.execute(delete(ScheduleEntry))
         await db.execute(delete(ChecklistTask))
         await db.execute(delete(Employee))
         await db.flush()
-        
+
         # 3. Re-populate tables
         # Track inserted entities to check integrity
         employee_map = {}
@@ -145,14 +155,14 @@ async def restore_database(payload: BackupPayload, db: AsyncSession = Depends(ge
             )
             db.add(emp)
             employee_map[emp.id] = emp
-            
+
         await db.flush() # Flush to populate employees first
-        
+
         # Validate foreign keys: buddy_id must exist in employees
         for emp_id, emp in employee_map.items():
             if emp.buddy_id and emp.buddy_id not in employee_map:
                 raise ValueError(f"Integrity check failed: Buddy ID {emp.buddy_id} for Employee {emp.name} does not exist.")
-                
+
         # Populate Checklist Tasks
         # Sort by blocked_by dependency first: the FK is a real, enforced
         # constraint on Postgres, so a task must not be inserted before the
@@ -161,7 +171,7 @@ async def restore_database(payload: BackupPayload, db: AsyncSession = Depends(ge
         for t_data in _topo_sort_tasks_by_blocked_by(payload.checklist_tasks):
             if t_data.employee_id not in employee_map:
                 raise ValueError(f"Integrity check failed: Checklist task {t_data.title} points to non-existent employee {t_data.employee_id}.")
-                
+
             task = ChecklistTask(
                 id=t_data.id,
                 employee_id=t_data.employee_id,
@@ -177,14 +187,14 @@ async def restore_database(payload: BackupPayload, db: AsyncSession = Depends(ge
             )
             db.add(task)
             task_map[task.id] = task
-            
+
         await db.flush()
-        
+
         # Populate Schedule Entries
         for s_data in payload.schedule_entries:
             if s_data.employee_id not in employee_map:
                 raise ValueError(f"Integrity check failed: Schedule entry points to non-existent employee {s_data.employee_id}.")
-                
+
             schedule = ScheduleEntry(
                 id=s_data.id,
                 employee_id=s_data.employee_id,
@@ -192,7 +202,7 @@ async def restore_database(payload: BackupPayload, db: AsyncSession = Depends(ge
                 status=s_data.status
             )
             db.add(schedule)
-            
+
         await db.commit()
         return {
             "status": "success",
@@ -200,7 +210,7 @@ async def restore_database(payload: BackupPayload, db: AsyncSession = Depends(ge
             "tasks_restored": len(payload.checklist_tasks),
             "schedules_restored": len(payload.schedule_entries)
         }
-        
+
     except Exception as e:
         await db.rollback()
         raise HTTPException(

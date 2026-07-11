@@ -1,7 +1,8 @@
 import pytest
 import datetime
 from app.core.security import hash_password
-from app.models import Employee, ChecklistTask
+from app.models import Employee, ChecklistTask, AuditLog
+from sqlalchemy import select
 
 @pytest.fixture
 async def authenticated_admin(client, db_session):
@@ -40,7 +41,8 @@ async def test_backup_export_and_restore(client, db_session, authenticated_admin
     # 2. Modify backup data and restore it
     # We will change the name of the admin in the backup list
     backup_data["employees"][0]["name"] = "Elena Modified"
-    
+    backup_data["confirmation_phrase"] = "RESTORE"
+
     restore_resp = await client.post("/backup/restore", json=backup_data, headers=headers)
     assert restore_resp.status_code == 200
     assert restore_resp.json()["employees_restored"] == 1
@@ -61,9 +63,10 @@ async def test_backup_restore_invalid_data(client, db_session, authenticated_adm
         "exported_at": "now",
         "employees": [],
         "checklist_tasks": [],
-        "schedule_entries": []
+        "schedule_entries": [],
+        "confirmation_phrase": "RESTORE",
     }
-    
+
     resp = await client.post("/backup/restore", json=invalid_data, headers=headers)
     assert resp.status_code == 400 # Bad request due to version mismatch
 
@@ -94,6 +97,7 @@ async def test_backup_export_restore_preserves_due_date_fields(client, db_sessio
     assert exported_task["completed_at"] == completed_at.isoformat()
     assert exported_task["milestone_offset_days"] == 30
 
+    backup_data["confirmation_phrase"] = "RESTORE"
     restore_resp = await client.post("/backup/restore", json=backup_data, headers=headers)
     assert restore_resp.status_code == 200
 
@@ -128,6 +132,7 @@ async def test_backup_restore_preserves_existing_password_hash(
     original_hash = backup_data["employees"][0]["hashed_password"]
     assert original_hash and "placeholder" not in original_hash
 
+    backup_data["confirmation_phrase"] = "RESTORE"
     restore_resp = await client.post("/backup/restore", json=backup_data, headers=headers)
     assert restore_resp.status_code == 200
 
@@ -191,6 +196,7 @@ async def test_backup_restore_orders_blocked_by_before_dependent_task(
         },
     ]
 
+    backup_data["confirmation_phrase"] = "RESTORE"
     restore_resp = await client.post("/backup/restore", json=backup_data, headers=headers)
     assert restore_resp.status_code == 200
     assert restore_resp.json()["tasks_restored"] == 2
@@ -199,3 +205,51 @@ async def test_backup_restore_orders_blocked_by_before_dependent_task(
     blocker = await db_session.get(ChecklistTask, uuid.UUID(blocker_id))
     assert dependent is not None and blocker is not None
     assert dependent.blocked_by == blocker.id
+
+
+async def _existing_audit_log_count(db_session) -> int:
+    result = await db_session.execute(select(AuditLog))
+    return len(result.scalars().all())
+
+
+@pytest.mark.asyncio
+async def test_backup_restore_rejects_missing_confirmation_phrase(
+    client, db_session, authenticated_admin
+):
+    admin, csrf_token = authenticated_admin
+    headers = {"X-CSRF-Token": csrf_token}
+
+    export_resp = await client.get("/backup/export")
+    backup_data = export_resp.json()
+    # No confirmation_phrase at all -- pydantic rejects the payload outright.
+    before_count = await _existing_audit_log_count(db_session)
+
+    resp = await client.post("/backup/restore", json=backup_data, headers=headers)
+    assert resp.status_code == 422
+
+    me_resp = await client.get("/employees/me")
+    assert me_resp.json()["name"] == admin.name
+    assert await _existing_audit_log_count(db_session) == before_count
+
+
+@pytest.mark.asyncio
+async def test_backup_restore_rejects_wrong_confirmation_phrase(
+    client, db_session, authenticated_admin
+):
+    admin, csrf_token = authenticated_admin
+    headers = {"X-CSRF-Token": csrf_token}
+
+    export_resp = await client.get("/backup/export")
+    backup_data = export_resp.json()
+    backup_data["employees"][0]["name"] = "Should Not Persist"
+    backup_data["confirmation_phrase"] = "delete everything"
+    before_count = await _existing_audit_log_count(db_session)
+
+    resp = await client.post("/backup/restore", json=backup_data, headers=headers)
+    assert resp.status_code == 400
+
+    # No destructive work should have happened: the admin's name is unchanged
+    # and no audit log entry was written for this rejected attempt.
+    me_resp = await client.get("/employees/me")
+    assert me_resp.json()["name"] == admin.name
+    assert await _existing_audit_log_count(db_session) == before_count
