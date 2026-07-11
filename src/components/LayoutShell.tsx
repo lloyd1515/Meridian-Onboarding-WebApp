@@ -464,6 +464,26 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
                           Review and answer questions submitted by employees.
                         </div>
                       </a>
+
+                      <a
+                        href="#/admin/checklist-templates"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          navigate('/admin/checklist-templates');
+                          setActiveDropdown(null);
+                        }}
+                        className="group flex flex-col gap-1.5 p-3 -m-3 hover:bg-slate-50 transition-all duration-200 rounded"
+                      >
+                        <div className="font-sans font-bold text-body text-[#0B2A3D] group-hover:text-accent transition-colors flex items-center gap-1.5">
+                          Checklist Templates
+                          <span className="opacity-0 group-hover:opacity-100 transition-opacity text-accent text-body-sm">
+                            →
+                          </span>
+                        </div>
+                        <div className="text-body-sm text-text-muted leading-relaxed">
+                          Edit the default onboarding tasks assigned to new hires.
+                        </div>
+                      </a>
                     </>
                   )}
                 </div>
@@ -552,6 +572,12 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
                         className="text-left font-semibold text-[#0B2A3D] hover:text-accent py-1 text-body-sm"
                       >
                         Ask HR Inbox
+                      </button>
+                      <button
+                        onClick={() => navigate('/admin/checklist-templates')}
+                        className="text-left font-semibold text-[#0B2A3D] hover:text-accent py-1 text-body-sm"
+                      >
+                        Checklist Templates
                       </button>
                     </>
                   )}

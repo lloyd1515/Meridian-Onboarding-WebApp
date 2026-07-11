@@ -12,6 +12,7 @@ import { EmployeeDirectory } from './features/hr-admin/EmployeeDirectory';
 import { HybridScheduler } from './features/hr-admin/HybridScheduler';
 import { BackupRestore } from './features/hr-admin/BackupRestore';
 import { QuestionsInbox } from './features/hr-admin/QuestionsInbox';
+import { ChecklistTemplateEditor } from './features/hr-admin/ChecklistTemplateEditor';
 
 import { ThemeProvider } from './context/ThemeContext';
 
@@ -126,6 +127,14 @@ export const App: React.FC = () => {
                 element={
                   <ProtectedRoute requiresAdmin restrictedDuringPreboarding>
                     <QuestionsInbox />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/checklist-templates"
+                element={
+                  <ProtectedRoute requiresAdmin restrictedDuringPreboarding>
+                    <ChecklistTemplateEditor />
                   </ProtectedRoute>
                 }
               />
