@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useDb } from '../../context/DbContext';
 import { useAuth } from '../../context/AuthContext';
-import { getChecklists, isNewHire, taskMilestoneDay, Task, Employee } from '../../services/db';
+import { getChecklists, isNewHire, taskMilestoneBucket, isTaskOverdue, Task, Employee } from '../../services/db';
 
 export const OnboardingDashboard: React.FC = () => {
   const { employees } = useDb();
@@ -76,13 +76,15 @@ export const OnboardingDashboard: React.FC = () => {
       }
     });
 
-    const tasks30 = checklist.filter(t => taskMilestoneDay(t.title) === 30);
-    const tasks60 = checklist.filter(t => taskMilestoneDay(t.title) === 60);
-    const tasks90 = checklist.filter(t => taskMilestoneDay(t.title) === 90);
+    const tasks30 = checklist.filter(t => taskMilestoneBucket(t) === 30);
+    const tasks60 = checklist.filter(t => taskMilestoneBucket(t) === 60);
+    const tasks90 = checklist.filter(t => taskMilestoneBucket(t) === 90);
 
     const pct30 = tasks30.length > 0 ? (tasks30.filter(t => t.status === 'completed').length / tasks30.length) * 100 : 0;
     const pct60 = tasks60.length > 0 ? (tasks60.filter(t => t.status === 'completed').length / tasks60.length) * 100 : 0;
     const pct90 = tasks90.length > 0 ? (tasks90.filter(t => t.status === 'completed').length / tasks90.length) * 100 : 0;
+
+    const overdueCount = checklist.filter(t => isTaskOverdue(t, simulationDate)).length;
 
     return {
       emp,
@@ -98,6 +100,7 @@ export const OnboardingDashboard: React.FC = () => {
       pct30,
       pct60,
       pct90,
+      overdueCount,
     };
   });
 
@@ -258,7 +261,7 @@ export const OnboardingDashboard: React.FC = () => {
 
             <div className="flex flex-col divide-y divide-border bg-white">
               {employeeStats.length > 0 ? (
-                employeeStats.map(({ emp, completionRate, tasks30, tasks60, tasks90, pct30, pct60, pct90 }) => {
+                employeeStats.map(({ emp, completionRate, tasks30, tasks60, tasks90, pct30, pct60, pct90, overdueCount }) => {
                   const isExpanded = expandedEmployeeId === emp.id;
                   const isNew = isNewHire(emp, simulationDate);
 
@@ -276,6 +279,11 @@ export const OnboardingDashboard: React.FC = () => {
                             {isNew && (
                               <span className="text-[8px] font-mono border border-accent text-accent px-1 font-bold bg-white rounded uppercase tracking-wider shrink-0">
                                 New Hire
+                              </span>
+                            )}
+                            {overdueCount > 0 && (
+                              <span className="text-[8px] font-mono border border-danger text-danger px-1 font-bold bg-white rounded uppercase tracking-wider shrink-0">
+                                {overdueCount} Overdue
                               </span>
                             )}
                           </div>

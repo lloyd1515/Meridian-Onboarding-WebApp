@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useDb } from '../../context/DbContext';
-import { getEmployeeChecklist, taskMilestoneDay, Task, Employee } from '../../services/db';
+import { getEmployeeChecklist, taskMilestoneBucket, Task, Employee } from '../../services/db';
 import { OFFICE_CAPACITY, OFFICE_CAPACITY_WARNING, MAX_OFFICE_DAYS_PER_WEEK } from '../../constants/scheduling';
 import { useNavigate } from 'react-router-dom';
 
@@ -40,7 +40,7 @@ export const DashboardPage: React.FC = () => {
     : 0;
   const currentMilestone: 30 | 60 | 90 = daysSinceHire <= 30 ? 30 : daysSinceHire <= 60 ? 60 : 90;
   const openTasksInMilestone = (milestone: 30 | 60 | 90) =>
-    tasks.filter(t => taskMilestoneDay(t.title) === milestone && (t.status === 'pending' || t.status === 'in_progress' || t.status === 'blocked')).length;
+    tasks.filter(t => taskMilestoneBucket(t) === milestone && (t.status === 'pending' || t.status === 'in_progress' || t.status === 'blocked')).length;
   const currentMilestoneOpenCount = openTasksInMilestone(currentMilestone);
   const overdueMilestones = ([30, 60] as const).filter(m => m < currentMilestone && openTasksInMilestone(m) > 0);
 
