@@ -1,12 +1,12 @@
 import datetime
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from typing import List
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, RoleChecker
-from app.models import Employee
+from app.models import Employee, ChecklistTask, ScheduleEntry
 from app.schemas import EmployeeOut, BackupEmployeeInput, EmployeeUpdate, BuddyViewResponse, BuddyViewEntry, BuddyStuckTask
 from uuid import UUID
 from app.core.security import hash_password
@@ -17,6 +17,87 @@ router = APIRouter(prefix="/employees", tags=["Employees"])
 @router.get("/me", response_model=EmployeeOut)
 async def get_me(current_user: Employee = Depends(get_current_user)):
     return current_user
+
+def _ics_escape(text: str) -> str:
+    """Escape text per RFC 5545 (section 3.3.11)."""
+    return (
+        text.replace("\\", "\\\\")
+        .replace(";", "\\;")
+        .replace(",", "\\,")
+        .replace("\n", "\\n")
+    )
+
+@router.get("/me/agenda.ics")
+async def get_my_agenda_ics(
+    db: AsyncSession = Depends(get_db),
+    current_user: Employee = Depends(get_current_user)
+):
+    """Exports the current user's first-week agenda (office/remote days plus
+    a focus task per day) as a downloadable .ics calendar file, so they can
+    import it into their own calendar app. Mirrors the same office/remote +
+    focus-task-per-day agenda shown on the dashboard's "This Week's Agenda"."""
+    today = datetime.date.today()
+    monday = today - datetime.timedelta(days=today.weekday())
+    week_dates = [monday + datetime.timedelta(days=i) for i in range(5)]
+
+    schedule_stmt = select(ScheduleEntry).where(
+        ScheduleEntry.employee_id == current_user.id,
+        ScheduleEntry.date.in_(week_dates),
+    )
+    schedule_result = await db.execute(schedule_stmt)
+    office_dates = {
+        e.date for e in schedule_result.scalars().all() if e.status == "office"
+    }
+
+    tasks_stmt = (
+        select(ChecklistTask)
+        .where(
+            ChecklistTask.employee_id == current_user.id,
+            ChecklistTask.status.in_(["pending", "in_progress"]),
+        )
+        .order_by(ChecklistTask.due_date.asc(), ChecklistTask.title.asc())
+    )
+    tasks_result = await db.execute(tasks_stmt)
+    open_tasks = tasks_result.scalars().all()
+
+    dtstamp = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Meridian Onboarding//Agenda Export//EN"]
+
+    for idx, day in enumerate(week_dates):
+        is_office = day in office_dates
+        tasks_due_today = [t for t in open_tasks if t.due_date == day]
+        if tasks_due_today:
+            focus_task = tasks_due_today[0]
+        elif open_tasks:
+            focus_task = open_tasks[idx % len(open_tasks)]
+        else:
+            focus_task = None
+
+        summary = f"Meridian Onboarding — {'In Office' if is_office else 'Remote'}"
+        description = f'Focus task: "{focus_task.title}"' if focus_task else "Checklist is all caught up."
+
+        day_str = day.strftime("%Y%m%d")
+        next_day_str = (day + datetime.timedelta(days=1)).strftime("%Y%m%d")
+
+        lines.extend([
+            "BEGIN:VEVENT",
+            f"UID:{current_user.id}-{day_str}@meridian-onboarding",
+            f"DTSTAMP:{dtstamp}",
+            f"DTSTART;VALUE=DATE:{day_str}",
+            f"DTEND;VALUE=DATE:{next_day_str}",
+            f"SUMMARY:{_ics_escape(summary)}",
+            f"DESCRIPTION:{_ics_escape(description)}",
+            "END:VEVENT",
+        ])
+
+    lines.append("END:VCALENDAR")
+    ics_content = "\r\n".join(lines) + "\r\n"
+
+    return Response(
+        content=ics_content,
+        media_type="text/calendar",
+        headers={"Content-Disposition": "attachment; filename=\"agenda.ics\""},
+    )
 
 @router.get("/me/buddy-view", response_model=BuddyViewResponse)
 async def get_buddy_view(

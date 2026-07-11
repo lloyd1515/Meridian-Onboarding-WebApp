@@ -2,7 +2,7 @@ import uuid
 import pytest
 import datetime
 from app.core.security import hash_password
-from app.models import Employee, ChecklistTask
+from app.models import Employee, ChecklistTask, ScheduleEntry
 
 
 @pytest.fixture
@@ -319,3 +319,44 @@ async def test_buddy_view_lists_hires_and_flags_stuck_tasks(client, db_session, 
 
     stuck_titles = {t["title"] for t in entry["stuck_tasks"]}
     assert stuck_titles == {"Install security software", "Meet the team"}
+
+
+@pytest.mark.asyncio
+async def test_agenda_ics_returns_five_valid_vevents(client, db_session, authenticated_employee):
+    """The dashboard's 'Download .ics' export: one VEVENT per weekday of the
+    current week, reflecting real ScheduleEntry office/remote days and a
+    focus task pulled from the employee's own open checklist tasks."""
+    emp, csrf_token = authenticated_employee
+
+    today = datetime.date.today()
+    monday = today - datetime.timedelta(days=today.weekday())
+
+    db_session.add(ScheduleEntry(employee_id=emp.id, date=monday, status="office"))
+    db_session.add(ChecklistTask(
+        employee_id=emp.id, title="Finish onboarding survey", status="pending", dependencies=[],
+    ))
+    await db_session.commit()
+
+    resp = await client.get("/employees/me/agenda.ics")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/calendar")
+    assert 'attachment; filename="agenda.ics"' in resp.headers["content-disposition"]
+
+    body = resp.text
+    assert body.startswith("BEGIN:VCALENDAR\r\n")
+    assert body.rstrip("\r\n").endswith("END:VCALENDAR")
+    assert body.count("BEGIN:VEVENT") == 5
+    assert body.count("END:VEVENT") == 5
+    for field in ["UID:", "DTSTAMP:", "DTSTART;VALUE=DATE:", "DTEND;VALUE=DATE:", "SUMMARY:", "DESCRIPTION:"]:
+        assert body.count(field) == 5
+
+    monday_str = monday.strftime("%Y%m%d")
+    assert f"DTSTART;VALUE=DATE:{monday_str}" in body
+    assert "In Office" in body
+    assert "Finish onboarding survey" in body
+
+
+@pytest.mark.asyncio
+async def test_agenda_ics_requires_authentication(client, db_session):
+    resp = await client.get("/employees/me/agenda.ics")
+    assert resp.status_code == 401
