@@ -16,15 +16,30 @@ const existingBuddy: Employee = {
   hybridPreference: 'HYBRID',
 };
 
+const editTarget: Employee = {
+  id: 'employee-edit-target-1',
+  name: 'Sam Editable',
+  email: 'sam.editable@meridian.com',
+  slackHandle: '@sam.editable',
+  role: 'Software Specialist',
+  department: 'Sales',
+  hireDate: '2022-03-10',
+  buddyId: 'buddy-existing-1',
+  hybridPreference: 'OFFICE',
+  assignedDesk: 'D-1',
+};
+
 const mockAddEmployee = vi.fn();
+const mockUpdateEmployee = vi.fn();
 
 vi.mock('../../context/DbContext', () => ({
   useDb: () => ({
-    employees: [existingBuddy],
+    employees: [existingBuddy, editTarget],
     scheduler: { '0': [], '1': [], '2': [], '3': [], '4': [] },
     isLoading: false,
     refreshData: vi.fn(),
     addEmployee: mockAddEmployee,
+    updateEmployee: mockUpdateEmployee,
     updateScheduler: vi.fn(),
   }),
 }));
@@ -48,6 +63,8 @@ describe('EmployeeDirectory Add New Hire', () => {
   beforeEach(() => {
     mockAddEmployee.mockReset();
     mockAddEmployee.mockResolvedValue(undefined);
+    mockUpdateEmployee.mockReset();
+    mockUpdateEmployee.mockResolvedValue(undefined);
   });
 
   it('offers every existing employee as a selectable buddy', async () => {
@@ -80,5 +97,44 @@ describe('EmployeeDirectory Add New Hire', () => {
     expect(submitted.id).toMatch(UUID_V4_REGEX);
     expect(submitted.name).toBe('New Hire Person');
     expect(submitted.email).toBe('new.hire@meridian.com');
+  });
+});
+
+describe('EmployeeDirectory inline edit', () => {
+  beforeEach(() => {
+    mockAddEmployee.mockReset();
+    mockUpdateEmployee.mockReset();
+    mockUpdateEmployee.mockResolvedValue(undefined);
+  });
+
+  it('opens the edit drawer pre-populated with the row\'s current data', async () => {
+    const user = userEvent.setup();
+    render(<EmployeeDirectory />);
+
+    await user.click(screen.getByRole('button', { name: `Edit ${editTarget.name}` }));
+
+    expect(screen.getByRole('heading', { name: /edit employee/i })).toBeInTheDocument();
+    expect(screen.getByText(editTarget.email, { exact: false })).toBeInTheDocument();
+    expect(screen.getByLabelText(/department/i)).toHaveValue('Sales');
+    expect(screen.getByLabelText(/associate buddy/i)).toHaveValue('buddy-existing-1');
+    expect(screen.getByLabelText(/assigned desk/i)).toHaveValue('D-1');
+  });
+
+  it('submits a PATCH-shaped payload (not a full employee re-POST) when saving an edit', async () => {
+    const user = userEvent.setup();
+    render(<EmployeeDirectory />);
+
+    await user.click(screen.getByRole('button', { name: `Edit ${editTarget.name}` }));
+    await user.selectOptions(screen.getByLabelText(/department/i), 'Engineering');
+    await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+    expect(mockUpdateEmployee).toHaveBeenCalledTimes(1);
+    expect(mockUpdateEmployee).toHaveBeenCalledWith(editTarget.id, {
+      department: 'Engineering',
+      buddyId: 'buddy-existing-1',
+      hybridPreference: 'OFFICE',
+      assignedDesk: 'D-1',
+    });
+    expect(mockAddEmployee).not.toHaveBeenCalled();
   });
 });
