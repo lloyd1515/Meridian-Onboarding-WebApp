@@ -49,8 +49,13 @@ export const EmployeeSlideOver: React.FC<EmployeeSlideOverProps> = ({ mode, empl
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null;
     const focusableSelector = 'a[href], button:not([disabled]), textarea, input:not([disabled]), select, [tabindex]:not([tabindex="-1"])';
+    // Filter out elements hidden via responsive classes (e.g. the mobile-only
+    // "md:hidden" close button) -- offsetParent is null for display:none
+    // elements, and focusing a non-rendered element is a silent no-op.
     const getFocusable = (): HTMLElement[] =>
-      drawerRef.current ? Array.from(drawerRef.current.querySelectorAll<HTMLElement>(focusableSelector)) : [];
+      drawerRef.current
+        ? Array.from(drawerRef.current.querySelectorAll<HTMLElement>(focusableSelector)).filter(el => el.offsetParent !== null)
+        : [];
 
     const focusables = getFocusable();
     (focusables[0] ?? drawerRef.current)?.focus();
