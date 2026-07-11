@@ -107,15 +107,16 @@ describe('backup export/restore password round-trip', () => {
     }));
 
     const exportedJson = await generateBackupExport();
-    const result = await validateAndRestoreBackup(exportedJson);
+    const result = await validateAndRestoreBackup(exportedJson, 'RESTORE');
 
     expect(result.success).toBe(true);
     expect(restorePayload.employees[0].hashed_password).toBe(REAL_HASH);
+    expect(restorePayload.confirmation_phrase).toBe('RESTORE');
   });
 
   it('falls back to the placeholder hash for an employee with no password at all', async () => {
     let restorePayload: any = null;
-    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
       restorePayload = JSON.parse(init!.body as string);
       return { ok: true, json: async () => ({ status: 'success' }) };
     }));
@@ -139,7 +140,7 @@ describe('backup export/restore password round-trip', () => {
       scheduler: {},
     });
 
-    const result = await validateAndRestoreBackup(newHireJson);
+    const result = await validateAndRestoreBackup(newHireJson, 'RESTORE');
 
     expect(result.success).toBe(true);
     expect(restorePayload.employees[0].hashed_password).toBe(

@@ -92,6 +92,15 @@ export const BackupSchema = z.object({
   scheduler: z.record(z.string(), z.array(z.string())),
 });
 
+export interface AuditLogEntry {
+  id: string;
+  actorEmployeeId: string | null;
+  actorName: string | null;
+  action: string;
+  detail: Record<string, unknown> | null;
+  createdAt: string;
+}
+
 export interface Question {
   id: string;
   employeeId: string;
@@ -369,7 +378,7 @@ export interface ValidationResult {
   warnings: string[];
 }
 
-export const validateAndRestoreBackup = async (jsonString: string): Promise<ValidationResult> => {
+export const validateAndRestoreBackup = async (jsonString: string, confirmationPhrase: string): Promise<ValidationResult> => {
   const result: ValidationResult = {
     success: false,
     errors: [],
@@ -436,7 +445,8 @@ export const validateAndRestoreBackup = async (jsonString: string): Promise<Vali
       exported_at: new Date().toISOString(),
       employees: backendEmployees,
       checklist_tasks: backendTasks,
-      schedule_entries: backendSchedules
+      schedule_entries: backendSchedules,
+      confirmation_phrase: confirmationPhrase
     };
 
     const res = await customFetch(`${API_URL}/backup/restore`, {
@@ -460,6 +470,29 @@ export const validateAndRestoreBackup = async (jsonString: string): Promise<Vali
   }
 
   return result;
+};
+
+function mapAuditLogEntryToFrontend(a: any): AuditLogEntry {
+  return {
+    id: a.id,
+    actorEmployeeId: a.actor_employee_id,
+    actorName: a.actor_name,
+    action: a.action,
+    detail: a.detail,
+    createdAt: a.created_at,
+  };
+}
+
+export const getAuditLog = async (): Promise<AuditLogEntry[]> => {
+  try {
+    const res = await customFetch(`${API_URL}/backup/audit-log`, credentialsOptions);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.map(mapAuditLogEntryToFrontend);
+  } catch (e) {
+    console.error('Error fetching audit log:', e);
+    return [];
+  }
 };
 
 function mapQuestionToFrontend(q: any): Question {

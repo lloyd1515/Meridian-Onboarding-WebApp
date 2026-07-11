@@ -1,8 +1,13 @@
-import React, { useState, useRef } from 'react';
-import { validateAndRestoreBackup, generateBackupExport, saveEmployee, EmployeeSchema } from '../../services/db';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { validateAndRestoreBackup, generateBackupExport, saveEmployee, EmployeeSchema, getAuditLog, AuditLogEntry } from '../../services/db';
 import { useDb } from '../../context/DbContext';
 
 type LogEntry = { type: 'error' | 'warning' | 'success'; message: string };
+
+// Typed-confirmation phrase the admin must type before a restore is
+// submitted -- must match server/app/routes/backup.py's
+// RESTORE_CONFIRMATION_PHRASE, which rejects any other value with 400.
+const RESTORE_CONFIRMATION_PHRASE = 'RESTORE';
 
 const CSV_REQUIRED_HEADERS = ['name', 'email', 'slack_handle', 'role', 'department', 'hire_date', 'hybrid_preference'];
 const CSV_TEMPLATE = `name,email,slack_handle,role,department,hire_date,hybrid_preference,buddy_id
@@ -28,12 +33,28 @@ export const BackupRestore: React.FC = () => {
   const [validateProgress, setValidateProgress] = useState(0);
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
+  // A dropped/selected backup file is held here, pending typed confirmation,
+  // rather than being restored immediately (replaces the old window.confirm()
+  // stopgap with a real typed-confirmation gate -- Item 5b).
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [confirmationInput, setConfirmationInput] = useState('');
+
+  const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
+
   const [csvDragActive, setCsvDragActive] = useState(false);
   const [isImportingCsv, setIsImportingCsv] = useState(false);
   const [csvLogs, setCsvLogs] = useState<LogEntry[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
+
+  const loadAuditLog = useCallback(async () => {
+    setAuditLog(await getAuditLog());
+  }, []);
+
+  useEffect(() => {
+    loadAuditLog();
+  }, [loadAuditLog]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -44,15 +65,25 @@ export const BackupRestore: React.FC = () => {
     }
   };
 
-  const processJson = async (file: File) => {
-    // Restore truncates and replaces every table -- confirm before touching
-    // the database, since dropping a file here used to restore immediately
-    // with no confirmation step at all.
-    const confirmed = window.confirm(
-      'This will permanently replace all employees, checklists, and schedules with the contents of this backup file. This cannot be undone. Continue?'
-    );
-    if (!confirmed) return;
+  const selectPendingFile = (file: File) => {
+    // Restore truncates and replaces every table -- stage the file and
+    // require the admin to type the confirmation phrase below before
+    // anything touches the database.
+    setPendingFile(file);
+    setConfirmationInput('');
+    setLogs([]);
+  };
 
+  const cancelPendingRestore = () => {
+    setPendingFile(null);
+    setConfirmationInput('');
+  };
+
+  const confirmRestore = async () => {
+    if (!pendingFile || confirmationInput !== RESTORE_CONFIRMATION_PHRASE) return;
+    const file = pendingFile;
+
+    setPendingFile(null);
     setIsValidating(true);
     setValidateProgress(10);
     setLogs([]);
@@ -61,12 +92,12 @@ export const BackupRestore: React.FC = () => {
     reader.onload = async (e) => {
       const content = e.target?.result as string;
       setValidateProgress(40);
-      
+
       setTimeout(async () => {
         setValidateProgress(70);
-        const result = await validateAndRestoreBackup(content);
+        const result = await validateAndRestoreBackup(content, RESTORE_CONFIRMATION_PHRASE);
         setValidateProgress(100);
-        
+
         setTimeout(() => {
           setIsValidating(false);
           if (result.success) {
@@ -76,6 +107,7 @@ export const BackupRestore: React.FC = () => {
             });
             setLogs(list);
             refreshData();
+            loadAuditLog();
           } else {
             const list = result.errors.map(err => ({ type: 'error' as const, message: `❌ Schema Error: ${err}` }));
             setLogs(list);
@@ -90,14 +122,15 @@ export const BackupRestore: React.FC = () => {
     e.preventDefault();
     setDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      await processJson(e.dataTransfer.files[0]);
+      selectPendingFile(e.dataTransfer.files[0]);
     }
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      await processJson(e.target.files[0]);
+      selectPendingFile(e.target.files[0]);
     }
+    e.target.value = '';
   };
 
   const handleCsvDrag = (e: React.DragEvent) => {
@@ -271,6 +304,7 @@ export const BackupRestore: React.FC = () => {
               ref={fileInputRef}
               onChange={handleFileChange}
               accept=".json"
+              aria-label="Restore backup file"
               className="hidden"
             />
             <span className="material-symbols-outlined text-[48px] text-text-muted mb-4 select-none">upload_file</span>
@@ -286,6 +320,38 @@ export const BackupRestore: React.FC = () => {
               </div>
               <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
                 <div className="bg-accent h-full transition-all duration-200" style={{ width: `${validateProgress}%` }}></div>
+              </div>
+            </div>
+          )}
+
+          {pendingFile && (
+            <div className="border border-danger/40 bg-red-50/30 p-4 rounded-xl flex flex-col gap-3 shadow-sm">
+              <p className="text-body-sm text-text-primary leading-relaxed">
+                <strong>{pendingFile.name}</strong> will permanently replace all employees, checklists, and schedules. This cannot be undone.
+                Type <strong className="font-mono">{RESTORE_CONFIRMATION_PHRASE}</strong> below to confirm.
+              </p>
+              <input
+                type="text"
+                value={confirmationInput}
+                onChange={(e) => setConfirmationInput(e.target.value)}
+                placeholder={`Type "${RESTORE_CONFIRMATION_PHRASE}" to confirm`}
+                aria-label="Type RESTORE to confirm"
+                className="border border-border rounded-lg px-3 py-2 font-mono text-body-sm w-full"
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={cancelPendingRestore}
+                  className="px-4 py-2 rounded-full text-body-sm font-medium border border-border hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmRestore}
+                  disabled={confirmationInput !== RESTORE_CONFIRMATION_PHRASE}
+                  className="px-4 py-2 rounded-full text-body-sm font-medium bg-danger text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Confirm Restore
+                </button>
               </div>
             </div>
           )}
@@ -373,6 +439,33 @@ export const BackupRestore: React.FC = () => {
           </p>
           <p className="text-caption text-text-muted mt-1 select-none">or click to browse local files</p>
         </div>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h3 className="text-h2 font-bold text-[#0B2A3D] border-b border-border pb-2.5">Restore Audit Log</h3>
+        {auditLog.length === 0 ? (
+          <p className="text-body-sm text-text-muted">No restores have been recorded yet.</p>
+        ) : (
+          <div className="border border-border bg-white rounded-2xl shadow-sm divide-y divide-border">
+            {auditLog.map((entry) => (
+              <div key={entry.id} className="p-4 flex flex-col gap-1">
+                <div className="flex justify-between items-center">
+                  <span className="font-sans font-bold text-[#0B2A3D] text-body-sm">{entry.action}</span>
+                  <span className="font-mono text-caption text-text-muted">{new Date(entry.createdAt).toLocaleString()}</span>
+                </div>
+                <p className="text-caption text-text-muted">
+                  By {entry.actorName || 'Unknown actor'}
+                  {entry.detail && (
+                    <>
+                      {' -- '}
+                      {Object.entries(entry.detail).map(([key, value]) => `${key}: ${value}`).join(', ')}
+                    </>
+                  )}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );
