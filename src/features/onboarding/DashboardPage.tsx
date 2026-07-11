@@ -177,7 +177,7 @@ export const DashboardPage: React.FC = () => {
         <div className="border border-border bg-surface p-6 rounded-2xl flex flex-col justify-between min-h-[160px] shadow-sm">
           <div>
             <h3 className="font-mono text-caption text-text-muted uppercase">Your Current Phase</h3>
-            <span className={`text-h2 font-bold leading-none mt-4 block uppercase ${isPreboarding ? 'text-danger' : 'text-success'}`}>
+            <span className={`text-h2 font-bold leading-none mt-4 block uppercase ${isPreboarding ? 'text-danger' : 'text-emerald-700'}`}>
               {isPreboarding ? 'Pre-boarding' : 'Active Phase'}
             </span>
           </div>
@@ -217,7 +217,7 @@ export const DashboardPage: React.FC = () => {
               <p className="text-caption text-text-muted font-mono mt-0.5">3 DAYS IN OFFICE, 2 DAYS REMOTE POLICY</p>
             </div>
             {!isPreboarding && (
-              <span className="font-mono text-[10px] text-accent uppercase font-bold border border-accent/20 px-2 py-0.5 bg-accent/5 rounded-md">
+              <span className="font-mono text-[10px] text-[#0B2A3D] uppercase font-bold border border-accent/20 px-2 py-0.5 bg-accent/5 rounded-md">
                 ✓ Interactive Scheduler Active (Click cards to toggle)
               </span>
             )}

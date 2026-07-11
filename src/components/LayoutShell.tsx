@@ -65,6 +65,7 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
             type="date"
             value={simulationDate}
             onChange={(e) => setSimulationDate(e.target.value)}
+            aria-label="Simulation date"
             className="border border-border rounded bg-white px-2 py-0.5 text-[11px] focus:outline-none focus:border-accent font-sans"
           />
           {isPreboarding && (

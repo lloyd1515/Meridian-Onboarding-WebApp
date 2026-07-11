@@ -283,7 +283,7 @@ export const HybridScheduler: React.FC = () => {
           onDragOver={handleDragOver}
           onDrop={handleDropUnassigned}
           tabIndex={0}
-          role="button"
+          role="group"
           aria-label={`Unassigned pool, ${unassignedEmployees.length} employees. ${draggedEmpId ? 'Press Enter to place the picked-up employee here.' : ''}`}
           onKeyDown={(e) => handleCellKeyDown(e, null)}
           className="border border-border bg-[#F8FAFC] p-4 rounded-2xl flex flex-col gap-3 min-h-[520px] max-h-[650px] lg:col-span-1 shadow-sm transition-all duration-200 hover:border-accent focus:outline-none focus:ring-2 focus:ring-accent"
@@ -309,7 +309,7 @@ export const HybridScheduler: React.FC = () => {
                   tabIndex={0}
                   role="button"
                   aria-pressed={isPickedUp}
-                  aria-label={`${emp.name}, ${emp.role}, unassigned. ${isPickedUp ? 'Picked up — press Enter to cancel.' : 'Press Enter to pick up.'}`}
+                  aria-label={`${emp.name}, ${emp.role}, unassigned.${isNew ? ' New hire.' : ''} ${isPickedUp ? 'Picked up — press Enter to cancel.' : 'Press Enter to pick up.'}`}
                   onKeyDown={(e) => handleCardKeyDown(e, emp.id, null)}
                   className={`border p-3 cursor-move bg-white rounded-xl flex flex-col gap-1.5 transition-all hover:bg-slate-50 shadow-sm focus:outline-none focus:ring-2 focus:ring-accent ${
                     isNew ? 'border-accent bg-[#E9F1F3]' : 'border-border'
@@ -318,7 +318,7 @@ export const HybridScheduler: React.FC = () => {
                   <div className="flex justify-between items-start gap-1">
                     <span className="font-bold text-body-sm text-[#0B2A3D] truncate">{emp.name}</span>
                     {isNew && (
-                      <span className="text-[8px] font-mono border border-accent text-accent px-1 font-bold bg-white rounded uppercase tracking-wider shrink-0">NEW</span>
+                      <span className="text-[8px] font-mono border border-accent text-[#0B2A3D] px-1 font-bold bg-white rounded uppercase tracking-wider shrink-0">NEW</span>
                     )}
                   </div>
                   <span className="text-caption text-text-muted font-mono leading-none truncate">{emp.role}</span>
@@ -348,7 +348,7 @@ export const HybridScheduler: React.FC = () => {
                 onDragOver={handleDragOver}
                 onDrop={() => handleDrop(colIdx)}
                 tabIndex={0}
-                role="button"
+                role="group"
                 aria-label={`${day.desc}, ${totalOccupancy} of ${OFFICE_CAPACITY} scheduled.${isAtLimit ? ' Capacity threshold reached.' : ''} ${draggedEmpId ? 'Press Enter to place the picked-up employee here.' : ''}`}
                 onKeyDown={(e) => handleCellKeyDown(e, colIdx)}
                 className="border border-border bg-surface p-4 rounded-2xl min-h-[520px] flex flex-col gap-3.5 transition-all duration-200 hover:border-accent shadow-sm focus:outline-none focus:ring-2 focus:ring-accent"
@@ -396,7 +396,7 @@ export const HybridScheduler: React.FC = () => {
                         tabIndex={0}
                         role="button"
                         aria-pressed={isPickedUp}
-                        aria-label={`${details.name}, ${details.role}, scheduled on ${day.desc}.${overlapNote} ${isPickedUp ? 'Picked up — press Enter to cancel.' : 'Press Enter to pick up.'}`}
+                        aria-label={`${details.name}, ${details.role}, scheduled on ${day.desc}.${details.isNewHire ? ' New hire.' : ''}${overlapNote} ${isPickedUp ? 'Picked up — press Enter to cancel.' : 'Press Enter to pick up.'}`}
                         onKeyDown={(e) => handleCardKeyDown(e, empId, colIdx)}
                         className={`border p-3 cursor-move bg-white rounded-xl flex flex-col gap-2 transition-all hover:bg-slate-50 shadow-sm focus:outline-none focus:ring-2 focus:ring-accent ${
                           details.isNewHire ? 'border-accent bg-[#E9F1F3]' : 'border-border'
@@ -405,7 +405,7 @@ export const HybridScheduler: React.FC = () => {
                         <div className="flex justify-between items-start gap-1">
                           <span className="font-bold text-body-sm text-[#0B2A3D] truncate">{details.name}</span>
                           {details.isNewHire && (
-                            <span className="text-[8px] font-mono border border-accent text-accent px-1 font-bold bg-white rounded uppercase tracking-wider shrink-0">NEW</span>
+                            <span className="text-[8px] font-mono border border-accent text-[#0B2A3D] px-1 font-bold bg-white rounded uppercase tracking-wider shrink-0">NEW</span>
                           )}
                         </div>
                         <span className="text-caption text-text-muted font-mono leading-none truncate">{details.role}</span>

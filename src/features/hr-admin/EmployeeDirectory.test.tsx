@@ -113,11 +113,12 @@ describe('EmployeeDirectory inline edit', () => {
 
     await user.click(screen.getByRole('button', { name: `Edit ${editTarget.name}` }));
 
-    expect(screen.getByRole('heading', { name: /edit employee/i })).toBeInTheDocument();
-    expect(screen.getByText(editTarget.email, { exact: false })).toBeInTheDocument();
-    expect(screen.getByLabelText(/department/i)).toHaveValue('Sales');
-    expect(screen.getByLabelText(/associate buddy/i)).toHaveValue('buddy-existing-1');
-    expect(screen.getByLabelText(/assigned desk/i)).toHaveValue('D-1');
+    const dialog = screen.getByRole('dialog', { name: /edit employee/i });
+    expect(within(dialog).getByRole('heading', { name: /edit employee/i })).toBeInTheDocument();
+    expect(within(dialog).getByText(editTarget.email, { exact: false })).toBeInTheDocument();
+    expect(within(dialog).getByLabelText(/department/i)).toHaveValue('Sales');
+    expect(within(dialog).getByLabelText(/associate buddy/i)).toHaveValue('buddy-existing-1');
+    expect(within(dialog).getByLabelText(/assigned desk/i)).toHaveValue('D-1');
   });
 
   it('submits a PATCH-shaped payload (not a full employee re-POST) when saving an edit', async () => {
@@ -125,8 +126,9 @@ describe('EmployeeDirectory inline edit', () => {
     render(<EmployeeDirectory />);
 
     await user.click(screen.getByRole('button', { name: `Edit ${editTarget.name}` }));
-    await user.selectOptions(screen.getByLabelText(/department/i), 'Engineering');
-    await user.click(screen.getByRole('button', { name: /save changes/i }));
+    const dialog = screen.getByRole('dialog', { name: /edit employee/i });
+    await user.selectOptions(within(dialog).getByLabelText(/department/i), 'Engineering');
+    await user.click(within(dialog).getByRole('button', { name: /save changes/i }));
 
     expect(mockUpdateEmployee).toHaveBeenCalledTimes(1);
     expect(mockUpdateEmployee).toHaveBeenCalledWith(editTarget.id, {

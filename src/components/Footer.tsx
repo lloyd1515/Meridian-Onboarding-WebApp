@@ -19,9 +19,9 @@ export const Footer: React.FC = () => {
           </div>
 
           <div className="flex flex-col gap-4">
-            <h4 className="font-mono text-caption uppercase tracking-wider text-white/50">
+            <h3 className="font-mono text-caption uppercase tracking-wider text-white/50">
               Get Started
-            </h4>
+            </h3>
             <ul className="flex flex-col gap-2.5">
               <li>
                 <button onClick={() => navigate('/dashboard')} className="text-body-sm text-white/75 hover:text-accent transition-colors text-left">
@@ -42,9 +42,9 @@ export const Footer: React.FC = () => {
           </div>
 
           <div className="flex flex-col gap-4">
-            <h4 className="font-mono text-caption uppercase tracking-wider text-white/50">
+            <h3 className="font-mono text-caption uppercase tracking-wider text-white/50">
               Need Help?
-            </h4>
+            </h3>
             <ul className="flex flex-col gap-2.5 text-body-sm text-white/75">
               <li>Slack: #it-helpdesk for device issues</li>
               <li>

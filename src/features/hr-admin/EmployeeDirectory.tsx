@@ -141,8 +141,9 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({ readOnly =
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="font-mono text-caption uppercase text-text-primary font-bold">Department Filter</label>
+              <label htmlFor="departmentFilter" className="font-mono text-caption uppercase text-text-primary font-bold">Department Filter</label>
               <select
+                id="departmentFilter"
                 value={selectedDept}
                 onChange={(e) => setSelectedDept(e.target.value)}
                 className="border border-border bg-white px-3 py-2 rounded-xl text-body-sm focus:outline-none focus:border-accent h-[38px] cursor-pointer"
@@ -198,7 +199,7 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({ readOnly =
                         </span>
                         <div className="flex flex-col font-mono text-caption text-text-muted truncate">
                           <span>Buddy: {emp.buddyId || 'None'}</span>
-                          <span className="text-[10px] text-accent font-bold">{emp.slackHandle}</span>
+                          <span className="text-[10px] text-[#0B2A3D] font-bold">{emp.slackHandle}</span>
                           <span className="text-[10px]">Desk: {emp.assignedDesk || 'Unassigned'}</span>
                         </div>
                         {!readOnly && (

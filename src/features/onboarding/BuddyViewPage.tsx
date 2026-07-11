@@ -64,7 +64,7 @@ export const BuddyViewPage: React.FC = () => {
 
                 {hire.stuckTasks.length > 0 ? (
                   <div className="flex flex-col gap-2">
-                    <span className="text-[10px] font-mono uppercase text-danger font-bold tracking-wider">
+                    <span className="text-[10px] font-mono uppercase text-red-700 font-bold tracking-wider">
                       Stuck tasks
                     </span>
                     {hire.stuckTasks.map((task) => (
@@ -73,7 +73,7 @@ export const BuddyViewPage: React.FC = () => {
                         className="bg-red-50 border border-danger/20 px-3 py-2 rounded-xl flex justify-between items-center gap-2"
                       >
                         <span className="text-body-sm text-text-primary">{task.title}</span>
-                        <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded border bg-white text-danger border-danger/30">
+                        <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded border bg-white text-red-700 border-danger/30">
                           {task.status === 'blocked' ? 'Blocked' : 'Overdue'}
                         </span>
                       </div>
