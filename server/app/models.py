@@ -120,3 +120,19 @@ class RefreshToken(Base):
     used = Column(Boolean, nullable=False, default=False)
     expires_at = Column(Date, nullable=False)
 
+class AuditLog(Base):
+    __tablename__ = "audit_log"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    actor_employee_id = Column(UUID(as_uuid=True), ForeignKey("employees.id", ondelete="SET NULL"), nullable=True)
+    action = Column(String, nullable=False)
+    detail = Column(JSON, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.datetime.utcnow)
+
+    # Relationships
+    actor = relationship("Employee")
+
+    __table_args__ = (
+        Index("idx_audit_log_created_at", "created_at"),
+    )
+
