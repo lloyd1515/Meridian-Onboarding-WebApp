@@ -52,18 +52,18 @@ test.describe('Meridian Onboarding Platform E2E Suite', () => {
     ).toBeVisible();
 
     // Persist via keyboard and confirm the schedule save actually talks to
-    // the API. saveScheduler POSTs once per employee (a pre-existing,
-    // separate perf issue -- not something this a11y pass touches), and the
-    // dev backend's rate limiter (60 req/60s) means requests can 429 under
-    // repeated test runs within the same window; asserting on response
-    // status would be flaky against that shared, external quota, so this
-    // just confirms the client actually issued a /scheduler POST (proving
-    // the keyboard-driven change reached the API) and that the app's own
-    // "saved" signal (Save button disabling) fires.
+    // the API. saveScheduler POSTs once per employee -- with the full
+    // 210-employee seed dataset that used to blow past the general IP rate
+    // limit (60 req/60s) and come back 429 for most employees while the UI
+    // still reported a blanket "saved successfully". /scheduler now has its
+    // own much more generous limiter (see server/app/main.py), so assert
+    // none of the per-employee POSTs are rate limited any more.
     let sawSchedulerPost = false;
-    page.on('request', (req) => {
-      if (req.url().includes('/scheduler') && req.method() === 'POST') {
+    let saw429 = false;
+    page.on('response', (res) => {
+      if (res.url().includes('/scheduler') && res.request().method() === 'POST') {
         sawSchedulerPost = true;
+        if (res.status() === 429) saw429 = true;
       }
     });
 
@@ -73,5 +73,6 @@ test.describe('Meridian Onboarding Platform E2E Suite', () => {
 
     await expect(saveButton).toBeDisabled({ timeout: 30000 });
     expect(sawSchedulerPost).toBeTruthy();
+    expect(saw429).toBeFalsy();
   });
 });

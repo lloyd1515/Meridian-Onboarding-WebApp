@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { taskMilestoneBucket, isTaskOverdue, Task, generateBackupExport, validateAndRestoreBackup } from './db';
+import { taskMilestoneBucket, isTaskOverdue, Task, generateBackupExport, validateAndRestoreBackup, saveScheduler } from './db';
 
 const baseTask: Task = {
   id: 't1',
@@ -146,5 +146,60 @@ describe('backup export/restore password round-trip', () => {
     expect(restorePayload.employees[0].hashed_password).toBe(
       '$argon2id$v=19$m=65536,t=3,p=2$supersecurepasswordplaceholder'
     );
+  });
+});
+
+describe('saveScheduler', () => {
+  const makeEmployees = (count: number) =>
+    Array.from({ length: count }, (_, i) => ({
+      id: `emp-${i}`,
+      name: `Employee ${i}`,
+      email: `employee.${i}@meridian.com`,
+      slack_handle: `@employee.${i}`,
+      role: 'employee',
+      department: 'Engineering',
+      hire_date: '2025-01-01',
+      buddy_id: null,
+      hybrid_preference: 'HYBRID',
+      assigned_desk: null,
+    }));
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('resolves without error when every per-employee POST succeeds', async () => {
+    const employees = makeEmployees(210);
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string) => {
+      if (url.toString().includes('/employees')) {
+        return { ok: true, json: async () => employees };
+      }
+      return { ok: true, json: async () => ({ status: 'success', warnings: [] }) };
+    }));
+
+    await expect(saveScheduler({})).resolves.toBeUndefined();
+  });
+
+  it('throws a partial-failure summary instead of silently reporting success when some POSTs fail (e.g. rate limited)', async () => {
+    // Regression test: this used to be the shape of the demo-breaking bug --
+    // HybridScheduler.tsx POSTs to /scheduler once per employee, and with the
+    // full 210-employee seed dataset most of those requests came back 429
+    // while the UI still showed a blanket "saved successfully" message.
+    const employees = makeEmployees(210);
+    let postCount = 0;
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string) => {
+      if (url.toString().includes('/employees')) {
+        return { ok: true, json: async () => employees };
+      }
+      postCount += 1;
+      // First 5 succeed, the rest are rate limited (429), mirroring a
+      // partial-failure bulk save.
+      if (postCount <= 5) {
+        return { ok: true, json: async () => ({ status: 'success', warnings: [] }) };
+      }
+      return { ok: false, status: 429, json: async () => ({ message: 'Too many requests' }) };
+    }));
+
+    await expect(saveScheduler({})).rejects.toThrow(/Saved 5 of 210.*205 failed/);
   });
 });
