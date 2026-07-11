@@ -54,6 +54,27 @@ class ChecklistTask(Base):
         Index("idx_checklist_tasks_blocked_by", "blocked_by"),
     )
 
+class ChecklistTemplate(Base):
+    __tablename__ = "checklist_templates"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    # NULL/shared = applies to every department (formerly _CORE_TASKS);
+    # a department name = capstone task for that department only
+    # (formerly _DEPARTMENT_CAPSTONE).
+    department = Column(String, nullable=True)
+    title = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    default_status = Column(String, nullable=False, default="pending")
+    milestone_offset_days = Column(Integer, nullable=False)
+    # Same index-based dependency scheme as the old hardcoded TaskTemplate
+    # dicts: indices into the ordered template list for this department.
+    dependency_indices = Column(JSON, nullable=True)
+    sort_order = Column(Integer, nullable=False, default=0)
+
+    __table_args__ = (
+        Index("idx_checklist_templates_department", "department"),
+    )
+
 class ScheduleEntry(Base):
     __tablename__ = "schedule_entries"
 
