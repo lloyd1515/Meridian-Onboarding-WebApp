@@ -107,6 +107,9 @@ class BackupChecklistTaskInput(BaseModel):
     skip_reason: Optional[str] = None
     blocked_by: Optional[UUID] = None
     dependencies: Optional[list[str]] = None
+    due_date: Optional[date] = None
+    completed_at: Optional[datetime] = None
+    milestone_offset_days: Optional[int] = None
 
 class BackupScheduleEntryInput(BaseModel):
     id: UUID

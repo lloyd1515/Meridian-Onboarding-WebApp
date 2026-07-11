@@ -46,7 +46,10 @@ async def export_database(db: AsyncSession = Depends(get_db)):
             "status": t.status,
             "skip_reason": t.skip_reason,
             "blocked_by": str(t.blocked_by) if t.blocked_by else None,
-            "dependencies": t.dependencies
+            "dependencies": t.dependencies,
+            "due_date": t.due_date.isoformat() if t.due_date else None,
+            "completed_at": t.completed_at.isoformat() if t.completed_at else None,
+            "milestone_offset_days": t.milestone_offset_days
         })
         
     exported_schedules = []
@@ -131,7 +134,10 @@ async def restore_database(payload: BackupPayload, db: AsyncSession = Depends(ge
                 status=t_data.status,
                 skip_reason=t_data.skip_reason,
                 blocked_by=t_data.blocked_by,
-                dependencies=t_data.dependencies
+                dependencies=t_data.dependencies,
+                due_date=t_data.due_date,
+                completed_at=t_data.completed_at,
+                milestone_offset_days=t_data.milestone_offset_days
             )
             db.add(task)
             task_map[task.id] = task
