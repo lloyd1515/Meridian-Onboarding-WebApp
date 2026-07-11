@@ -390,7 +390,11 @@ export const validateAndRestoreBackup = async (jsonString: string): Promise<Vali
       buddy_id: e.buddyId || null,
       hybrid_preference: e.hybridPreference || 'HYBRID',
       assigned_desk: e.assignedDesk || null,
-      hashed_password: e.hashed_password || '$argon2id$v=19$m=65536,t=3,p=2$supersecurepasswordplaceholder'
+      // hashedPassword (camelCase) is what generateBackupExport emits for an
+      // employee that already had a password. A row with no hashedPassword
+      // at all (e.g. hand-written JSON or a CSV-derived entry) legitimately
+      // has none yet, so it still falls back to the placeholder hash.
+      hashed_password: e.hashedPassword || '$argon2id$v=19$m=65536,t=3,p=2$supersecurepasswordplaceholder'
     }));
 
     const backendTasks: any[] = [];
@@ -612,8 +616,16 @@ export const generateBackupExport = async (): Promise<string> => {
   if (!res.ok) throw new Error('Failed to export backup');
   
   const data = await res.json();
-  const employees = data.employees.map(mapEmployeeToFrontend);
-  
+  // The v2.1 export is otherwise just mapEmployeeToFrontend's camelCase shape,
+  // but restore needs each employee's existing password hash to survive the
+  // round trip -- mapEmployeeToFrontend itself is shared with getEmployees/
+  // addEmployee/updateScheduler (see impact() HIGH-risk fan-out) and must not
+  // grow a password field, so it's appended here instead, backup-export-only.
+  const employees = data.employees.map((e: any) => ({
+    ...mapEmployeeToFrontend(e),
+    hashedPassword: e.hashed_password,
+  }));
+
   const checklists: Record<string, Task[]> = {};
   data.checklist_tasks.forEach((t: any) => {
     if (!checklists[t.employee_id]) {

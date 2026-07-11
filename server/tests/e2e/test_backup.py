@@ -105,6 +105,38 @@ async def test_backup_export_restore_preserves_due_date_fields(client, db_sessio
 
 
 @pytest.mark.asyncio
+async def test_backup_restore_preserves_existing_password_hash(
+    client, db_session, authenticated_admin
+):
+    """Regression test for the frontend v2.1 export/restore path
+    (src/services/db.ts generateBackupExport -> validateAndRestoreBackup).
+    That function builds its own restore payload straight from the exported
+    JSON rather than replaying /backup/export's raw response, so this test
+    shapes the payload exactly the way validateAndRestoreBackup does (a
+    top-level version/exported_at/employees/checklist_tasks/schedule_entries
+    object, with employees carrying their real hashed_password) to prove the
+    real login hash -- not the restore handler's default placeholder --
+    survives a round trip for an employee who already had a password.
+    """
+    admin, csrf_token = authenticated_admin
+    headers = {"X-CSRF-Token": csrf_token}
+
+    export_resp = await client.get("/backup/export")
+    assert export_resp.status_code == 200
+    backup_data = export_resp.json()
+
+    original_hash = backup_data["employees"][0]["hashed_password"]
+    assert original_hash and "placeholder" not in original_hash
+
+    restore_resp = await client.post("/backup/restore", json=backup_data, headers=headers)
+    assert restore_resp.status_code == 200
+
+    restored_admin = await db_session.get(Employee, admin.id)
+    assert restored_admin is not None
+    assert restored_admin.hashed_password == original_hash
+
+
+@pytest.mark.asyncio
 async def test_backup_restore_orders_blocked_by_before_dependent_task(
     client, db_session, authenticated_admin
 ):
