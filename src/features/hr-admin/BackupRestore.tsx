@@ -45,6 +45,14 @@ export const BackupRestore: React.FC = () => {
   };
 
   const processJson = async (file: File) => {
+    // Restore truncates and replaces every table -- confirm before touching
+    // the database, since dropping a file here used to restore immediately
+    // with no confirmation step at all.
+    const confirmed = window.confirm(
+      'This will permanently replace all employees, checklists, and schedules with the contents of this backup file. This cannot be undone. Continue?'
+    );
+    if (!confirmed) return;
+
     setIsValidating(true);
     setValidateProgress(10);
     setLogs([]);
