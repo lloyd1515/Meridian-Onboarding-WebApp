@@ -262,6 +262,30 @@ export const saveEmployee = async (employee: Employee): Promise<void> => {
   }
 };
 
+export type EmployeePatch = Partial<Pick<Employee, 'department' | 'buddyId' | 'hybridPreference' | 'assignedDesk'>>;
+
+export const updateEmployee = async (id: string, patch: EmployeePatch): Promise<void> => {
+  const payload: Record<string, unknown> = {};
+  if (patch.department !== undefined) payload.department = patch.department;
+  if (patch.buddyId !== undefined) payload.buddy_id = patch.buddyId || null;
+  if (patch.hybridPreference !== undefined) payload.hybrid_preference = patch.hybridPreference;
+  if (patch.assignedDesk !== undefined) payload.assigned_desk = patch.assignedDesk || null;
+
+  const res = await customFetch(`${API_URL}/employees/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': getCSRFToken()
+    },
+    body: JSON.stringify(payload),
+    ...credentialsOptions
+  });
+  if (!res.ok) {
+    const detail = await res.json();
+    throw new Error(detail?.detail || 'Failed to update employee');
+  }
+};
+
 export const getChecklists = async (): Promise<Record<string, Task[]>> => {
   try {
     const res = await customFetch(`${API_URL}/checklists/all`, credentialsOptions);

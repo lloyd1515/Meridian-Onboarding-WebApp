@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { getEmployees, getScheduler, saveEmployee, saveScheduler, Employee } from '../services/db';
+import { getEmployees, getScheduler, saveEmployee, saveScheduler, updateEmployee as updateEmployeeApi, Employee, EmployeePatch } from '../services/db';
 import { useAuth } from './AuthContext';
 
 interface DbContextType {
@@ -8,6 +8,7 @@ interface DbContextType {
   isLoading: boolean;
   refreshData: () => Promise<void>;
   addEmployee: (employee: Employee) => Promise<void>;
+  updateEmployee: (id: string, patch: EmployeePatch) => Promise<void>;
   updateScheduler: (scheduler: Record<string, string[]>) => Promise<void>;
 }
 
@@ -46,6 +47,11 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     await refreshData();
   };
 
+  const updateEmployee = async (id: string, patch: EmployeePatch) => {
+    await updateEmployeeApi(id, patch);
+    await refreshData();
+  };
+
   const updateScheduler = async (newScheduler: Record<string, string[]>) => {
     await saveScheduler(newScheduler);
     setScheduler(newScheduler);
@@ -59,6 +65,7 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         isLoading,
         refreshData,
         addEmployee,
+        updateEmployee,
         updateScheduler,
       }}
     >
