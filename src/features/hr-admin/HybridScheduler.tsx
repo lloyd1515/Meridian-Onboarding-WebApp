@@ -35,6 +35,54 @@ export const HybridScheduler: React.FC = () => {
     e.preventDefault();
   };
 
+  // Keyboard alternative to native HTML5 drag-and-drop: focus an employee
+  // card, press Enter/Space to "pick it up" (reuses the same draggedEmpId /
+  // sourceColIdx state the mouse path already sets in onDragStart), then
+  // focus a day column or the unassigned pool and press Enter/Space to
+  // "drop" it there via the existing handleDrop / handleDropUnassigned
+  // logic. Escape cancels a pending pick-up.
+  const pickUpEmployee = (empId: string, fromColIdx: string | null) => {
+    if (draggedEmpId === empId) {
+      // Pressing Enter again on the already-picked-up card cancels it.
+      setDraggedEmpId(null);
+      setSourceColIdx(null);
+      return;
+    }
+    setDraggedEmpId(empId);
+    setSourceColIdx(fromColIdx);
+  };
+
+  const handleCardKeyDown = (e: React.KeyboardEvent, empId: string, fromColIdx: string | null) => {
+    // Stop propagation so this doesn't also trigger the parent cell's
+    // onKeyDown (which would otherwise fire a drop using stale state, since
+    // this handler's setDraggedEmpId hasn't applied yet within the same
+    // bubble phase).
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      e.stopPropagation();
+      pickUpEmployee(empId, fromColIdx);
+    } else if (e.key === 'Escape') {
+      e.stopPropagation();
+      setDraggedEmpId(null);
+      setSourceColIdx(null);
+    }
+  };
+
+  const handleCellKeyDown = (e: React.KeyboardEvent, colIdx: string | null) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      if (!draggedEmpId) return;
+      e.preventDefault();
+      if (colIdx === null) {
+        handleDropUnassigned();
+      } else {
+        handleDrop(colIdx);
+      }
+    } else if (e.key === 'Escape') {
+      setDraggedEmpId(null);
+      setSourceColIdx(null);
+    }
+  };
+
   const handleDrop = (colIdx: string) => {
     if (!draggedEmpId) return;
 
@@ -176,6 +224,9 @@ export const HybridScheduler: React.FC = () => {
           <p className="text-body-sm text-text-muted">
             Drag and drop employees to schedule office presence days and monitor physical capacity.
           </p>
+          <p className="text-caption text-text-muted mt-1">
+            Keyboard: Tab to an employee card and press Enter/Space to pick it up, then Tab to a day column (or the Unassigned Pool) and press Enter/Space to place it there. Press Escape to cancel.
+          </p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -231,7 +282,11 @@ export const HybridScheduler: React.FC = () => {
         <div
           onDragOver={handleDragOver}
           onDrop={handleDropUnassigned}
-          className="border border-border bg-[#F8FAFC] p-4 rounded-2xl flex flex-col gap-3 min-h-[520px] max-h-[650px] lg:col-span-1 shadow-sm transition-all duration-200 hover:border-accent"
+          tabIndex={0}
+          role="button"
+          aria-label={`Unassigned pool, ${unassignedEmployees.length} employees. ${draggedEmpId ? 'Press Enter to place the picked-up employee here.' : ''}`}
+          onKeyDown={(e) => handleCellKeyDown(e, null)}
+          className="border border-border bg-[#F8FAFC] p-4 rounded-2xl flex flex-col gap-3 min-h-[520px] max-h-[650px] lg:col-span-1 shadow-sm transition-all duration-200 hover:border-accent focus:outline-none focus:ring-2 focus:ring-accent"
         >
           <div className="border-b border-border pb-2.5">
             <h3 className="font-bold text-[#0B2A3D] text-body uppercase tracking-wider">Unassigned Pool</h3>
@@ -241,6 +296,7 @@ export const HybridScheduler: React.FC = () => {
           <div className="flex-grow flex flex-col gap-2 overflow-y-auto pr-1">
             {unassignedEmployees.map(emp => {
               const isNew = isNewHire(emp, simulationDate);
+              const isPickedUp = draggedEmpId === emp.id;
               return (
                 <div
                   key={emp.id}
@@ -250,9 +306,14 @@ export const HybridScheduler: React.FC = () => {
                     setSourceColIdx(null);
                     e.dataTransfer.effectAllowed = 'move';
                   }}
-                  className={`border border-border p-3 cursor-move bg-white rounded-xl flex flex-col gap-1.5 transition-all hover:bg-slate-50 shadow-sm ${
-                    isNew ? 'border-accent bg-[#E9F1F3]' : ''
-                  }`}
+                  tabIndex={0}
+                  role="button"
+                  aria-pressed={isPickedUp}
+                  aria-label={`${emp.name}, ${emp.role}, unassigned. ${isPickedUp ? 'Picked up — press Enter to cancel.' : 'Press Enter to pick up.'}`}
+                  onKeyDown={(e) => handleCardKeyDown(e, emp.id, null)}
+                  className={`border p-3 cursor-move bg-white rounded-xl flex flex-col gap-1.5 transition-all hover:bg-slate-50 shadow-sm focus:outline-none focus:ring-2 focus:ring-accent ${
+                    isNew ? 'border-accent bg-[#E9F1F3]' : 'border-border'
+                  } ${isPickedUp ? 'ring-2 ring-accent' : ''}`}
                 >
                   <div className="flex justify-between items-start gap-1">
                     <span className="font-bold text-body-sm text-[#0B2A3D] truncate">{emp.name}</span>
@@ -286,7 +347,11 @@ export const HybridScheduler: React.FC = () => {
                 key={day.label}
                 onDragOver={handleDragOver}
                 onDrop={() => handleDrop(colIdx)}
-                className="border border-border bg-surface p-4 rounded-2xl min-h-[520px] flex flex-col gap-3.5 transition-all duration-200 hover:border-accent shadow-sm"
+                tabIndex={0}
+                role="button"
+                aria-label={`${day.desc}, ${totalOccupancy} of ${OFFICE_CAPACITY} scheduled.${isAtLimit ? ' Capacity threshold reached.' : ''} ${draggedEmpId ? 'Press Enter to place the picked-up employee here.' : ''}`}
+                onKeyDown={(e) => handleCellKeyDown(e, colIdx)}
+                className="border border-border bg-surface p-4 rounded-2xl min-h-[520px] flex flex-col gap-3.5 transition-all duration-200 hover:border-accent shadow-sm focus:outline-none focus:ring-2 focus:ring-accent"
               >
                 {/* Day Header */}
                 <div className="border-b border-border pb-2.5 select-none">
@@ -312,6 +377,13 @@ export const HybridScheduler: React.FC = () => {
                     const details = getScheduledDetails(empId, colIdx);
                     if (!details) return null;
 
+                    const isPickedUp = draggedEmpId === empId;
+                    const overlapNote = details.hasBuddyOverlap
+                      ? ' Buddy overlap.'
+                      : details.isBuddyRemote
+                      ? ' No buddy overlap.'
+                      : '';
+
                     return (
                       <div
                         key={empId}
@@ -321,9 +393,14 @@ export const HybridScheduler: React.FC = () => {
                           setSourceColIdx(colIdx);
                           e.dataTransfer.effectAllowed = 'move';
                         }}
-                        className={`border border-border p-3 cursor-move bg-white rounded-xl flex flex-col gap-2 transition-all hover:bg-slate-50 shadow-sm ${
-                          details.isNewHire ? 'border-accent bg-[#E9F1F3]' : ''
-                        }`}
+                        tabIndex={0}
+                        role="button"
+                        aria-pressed={isPickedUp}
+                        aria-label={`${details.name}, ${details.role}, scheduled on ${day.desc}.${overlapNote} ${isPickedUp ? 'Picked up — press Enter to cancel.' : 'Press Enter to pick up.'}`}
+                        onKeyDown={(e) => handleCardKeyDown(e, empId, colIdx)}
+                        className={`border p-3 cursor-move bg-white rounded-xl flex flex-col gap-2 transition-all hover:bg-slate-50 shadow-sm focus:outline-none focus:ring-2 focus:ring-accent ${
+                          details.isNewHire ? 'border-accent bg-[#E9F1F3]' : 'border-border'
+                        } ${isPickedUp ? 'ring-2 ring-accent' : ''}`}
                       >
                         <div className="flex justify-between items-start gap-1">
                           <span className="font-bold text-body-sm text-[#0B2A3D] truncate">{details.name}</span>
