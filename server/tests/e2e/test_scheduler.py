@@ -84,9 +84,10 @@ async def test_preboardee_cannot_book_office_days(client, db_session):
     submit = await client.post("/scheduler", json=booking, headers=headers)
     assert submit.status_code == 403
 
-    # Viewing the shared schedule is still allowed.
+    # Reading the shared schedule is gated the same way as booking: a
+    # pre-boardee can't enumerate everyone else's office days either.
     view = await client.get("/scheduler")
-    assert view.status_code == 200
+    assert view.status_code == 403
 
 
 @pytest.mark.asyncio

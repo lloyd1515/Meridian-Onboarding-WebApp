@@ -17,6 +17,13 @@ def get_monday(d: datetime.date) -> datetime.date:
 
 @router.get("", response_model=List[ScheduleEntryOut])
 async def get_schedules(db: AsyncSession = Depends(get_db), current_user: Employee = Depends(get_current_user)):
+    # Pre-boarding accounts can't book office days (see submit_schedules below) --
+    # they shouldn't be able to read everyone else's schedule either. Same
+    # date-based gate as the write path, so a stale 'preboardee' role can't
+    # keep blocking someone whose start date has passed.
+    if current_user.hire_date > datetime.date.today():
+        raise HTTPException(status_code=403, detail="Schedules are only visible from your start date onward")
+
     stmt = (
         select(ScheduleEntry, Employee.name)
         .join(Employee, Employee.id == ScheduleEntry.employee_id)
