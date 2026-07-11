@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useDb } from '../../context/DbContext';
-import { getEmployeeChecklist, taskMilestoneBucket, Task, Employee } from '../../services/db';
+import { getEmployeeChecklist, taskMilestoneBucket, Task, Employee, downloadAgendaIcs } from '../../services/db';
 import { OFFICE_CAPACITY, OFFICE_CAPACITY_WARNING, MAX_OFFICE_DAYS_PER_WEEK } from '../../constants/scheduling';
 import { useNavigate } from 'react-router-dom';
 
@@ -16,6 +16,7 @@ export const DashboardPage: React.FC = () => {
   const [slackSynced, setSlackSynced] = useState(false);
   const [meetLink, setMeetLink] = useState<string | null>(null);
   const [activeDayIdx, setActiveDayIdx] = useState<number>(0);
+  const [isDownloadingAgenda, setIsDownloadingAgenda] = useState(false);
 
   useEffect(() => {
     if (currentUser) {
@@ -95,6 +96,19 @@ export const DashboardPage: React.FC = () => {
     };
 
     await updateScheduler(updatedScheduler);
+  };
+
+  const handleDownloadAgenda = async () => {
+    if (isDownloadingAgenda) return;
+    setIsDownloadingAgenda(true);
+    try {
+      await downloadAgendaIcs();
+    } catch (e) {
+      console.error('Error downloading agenda calendar file:', e);
+      alert('Could not download the calendar file. Please try again.');
+    } finally {
+      setIsDownloadingAgenda(false);
+    }
   };
 
   const handleSlackSync = () => {
@@ -285,7 +299,17 @@ export const DashboardPage: React.FC = () => {
 
           {!isPreboarding && (
             <div className="pt-4 border-t border-border flex flex-col gap-2">
-              <h4 className="font-mono text-caption uppercase text-text-muted">This Week's Agenda</h4>
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="font-mono text-caption uppercase text-text-muted">This Week's Agenda</h4>
+                <button
+                  onClick={handleDownloadAgenda}
+                  disabled={isDownloadingAgenda}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 border border-border rounded-full text-caption font-mono text-text-primary hover:bg-surface-muted transition-all disabled:opacity-50 disabled:pointer-events-none"
+                >
+                  <span className="material-symbols-outlined text-[14px]">download</span>
+                  <span>{isDownloadingAgenda ? 'Preparing...' : 'Download .ics'}</span>
+                </button>
+              </div>
               <div className="flex flex-col gap-1.5">
                 {days.map((day, idx) => {
                   const dayIdx = idx.toString();
