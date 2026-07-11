@@ -60,6 +60,43 @@ make frontend             # terminal B — Vite dev server on :5173
 
 Windows users: `make` isn't installed by default (`choco install make`, or use WSL) — or just use the Docker path above, which needs nothing else.
 
+## Production deployment (partial)
+
+`docker-compose.yml`'s `frontend` service runs the Vite dev server — fine for local dev, not for anything else. `docker-compose.prod.yml` is an override that swaps it for a production static build (`Dockerfile.prod`: multi-stage, non-root, serves the compiled `dist/` on :3000) without touching the dev service:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+```
+
+This runs the prod-built frontend on host port 8080 (dev's `:5173` mapping is left alone, so both can run side by side) and widens the backend's `BACKEND_CORS_ORIGINS` to also accept that origin. `backend` and `db` are already prod-grade as-is (see `server/Dockerfile`) and are untouched by the override.
+
+Secrets management (replacing `.env` with a real secrets manager) is intentionally out of scope here — see item 12 in [WHAT_I_WOULD_DO_NEXT.md](./WHAT_I_WOULD_DO_NEXT.md).
+
+### Backup scheduling
+
+`GET /backup/export` (hr_admin only, cookie-authenticated) returns the full JSON backup used by the HR admin restore flow. There's no built-in scheduler — the simplest viable setup is a cron job that logs in and curls the export to a timestamped file on a mounted volume:
+
+```bash
+#!/bin/sh
+# backup.sh -- run periodically (e.g. via cron) against a running stack.
+set -e
+API_URL="${API_URL:-http://localhost:8090}"
+BACKUP_DIR="${BACKUP_DIR:-./backups}"
+COOKIE_JAR="$(mktemp)"
+
+curl -sf -c "$COOKIE_JAR" -X POST "$API_URL/auth/login" \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"$BACKUP_EMAIL\",\"password\":\"$BACKUP_PASSWORD\"}" -o /dev/null
+
+mkdir -p "$BACKUP_DIR"
+curl -sf -b "$COOKIE_JAR" "$API_URL/backup/export" \
+  -o "$BACKUP_DIR/backup-$(date -u +%Y%m%dT%H%M%SZ).json"
+
+rm -f "$COOKIE_JAR"
+```
+
+Point `BACKUP_EMAIL`/`BACKUP_PASSWORD` at a dedicated hr_admin service account (not a real person's login), mount `$BACKUP_DIR` to durable storage, and schedule it with either the host's crontab (`0 2 * * * BACKUP_EMAIL=... BACKUP_PASSWORD=... /path/to/backup.sh`) or a small sidecar service in `docker-compose.prod.yml` running `crond` alongside `curl`. This is a documented recipe, not a running service in this repo — add one only if the deployment actually needs unattended backups.
+
 ## Tests
 
 ```bash
