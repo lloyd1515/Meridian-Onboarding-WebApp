@@ -60,6 +60,153 @@ async def test_add_new_hire_accepts_uuid_and_seeds_department_checklist(client, 
     assert "Submit first Pull Request (PR)" not in titles  # not Engineering
 
 
+@pytest.fixture
+async def authenticated_employee(client, db_session):
+    hashed = hash_password("password123")
+    emp = Employee(
+        name="Regular Employee",
+        email="regular.employee@meridian.com",
+        slack_handle="@regular.employee",
+        role="employee",
+        department="Engineering",
+        hire_date=datetime.date(2022, 1, 15),
+        hashed_password=hashed,
+    )
+    db_session.add(emp)
+    await db_session.flush()
+
+    login_data = {"email": "regular.employee@meridian.com", "password": "password123"}
+    resp = await client.post("/auth/login", json=login_data)
+    assert resp.status_code == 200
+    csrf_token = resp.cookies["csrf_token"]
+    return emp, csrf_token
+
+
+@pytest.mark.asyncio
+async def test_patch_employee_updates_editable_fields(client, db_session, authenticated_admin):
+    admin, csrf_token = authenticated_admin
+    headers = {"X-CSRF-Token": csrf_token}
+
+    buddy = Employee(
+        name="Buddy One",
+        email="buddy.one@meridian.com",
+        slack_handle="@buddy.one",
+        role="buddy",
+        department="Engineering",
+        hire_date=datetime.date(2022, 1, 15),
+        hashed_password=hash_password("password123"),
+    )
+    target = Employee(
+        name="Target Employee",
+        email="target.employee@meridian.com",
+        slack_handle="@target.employee",
+        role="employee",
+        department="Sales",
+        hire_date=datetime.date(2022, 1, 15),
+        hashed_password=hash_password("password123"),
+        hybrid_preference="REMOTE",
+        assigned_desk=None,
+    )
+    db_session.add_all([buddy, target])
+    await db_session.flush()
+
+    resp = await client.patch(
+        f"/employees/{target.id}",
+        json={
+            "department": "Engineering",
+            "buddy_id": str(buddy.id),
+            "hybrid_preference": "HYBRID",
+            "assigned_desk": "D-42",
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["department"] == "Engineering"
+    assert body["buddy_id"] == str(buddy.id)
+    assert body["hybrid_preference"] == "HYBRID"
+    assert body["assigned_desk"] == "D-42"
+    # Fields excluded from this endpoint's scope must be untouched
+    assert body["name"] == "Target Employee"
+    assert body["email"] == "target.employee@meridian.com"
+    assert body["role"] == "employee"
+
+
+@pytest.mark.asyncio
+async def test_patch_employee_partial_update_does_not_clobber_other_fields(client, db_session, authenticated_admin):
+    admin, csrf_token = authenticated_admin
+    headers = {"X-CSRF-Token": csrf_token}
+
+    target = Employee(
+        name="Partial Update Target",
+        email="partial.target@meridian.com",
+        slack_handle="@partial.target",
+        role="employee",
+        department="Marketing",
+        hire_date=datetime.date(2022, 1, 15),
+        hashed_password=hash_password("password123"),
+        hybrid_preference="OFFICE",
+        assigned_desk="D-1",
+    )
+    db_session.add(target)
+    await db_session.flush()
+
+    resp = await client.patch(
+        f"/employees/{target.id}",
+        json={"department": "Finance"},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["department"] == "Finance"
+    # Untouched fields survive the partial update
+    assert body["hybrid_preference"] == "OFFICE"
+    assert body["assigned_desk"] == "D-1"
+    assert body["buddy_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_patch_employee_rejects_nonexistent_buddy(client, db_session, authenticated_admin):
+    admin, csrf_token = authenticated_admin
+    headers = {"X-CSRF-Token": csrf_token}
+
+    target = Employee(
+        name="Buddy Validation Target",
+        email="buddy.validation.target@meridian.com",
+        slack_handle="@buddy.validation.target",
+        role="employee",
+        department="Sales",
+        hire_date=datetime.date(2022, 1, 15),
+        hashed_password=hash_password("password123"),
+    )
+    db_session.add(target)
+    await db_session.flush()
+
+    fake_buddy_id = str(uuid.uuid4())
+    resp = await client.patch(
+        f"/employees/{target.id}",
+        json={"buddy_id": fake_buddy_id},
+        headers=headers,
+    )
+    assert resp.status_code == 400
+
+    await db_session.refresh(target)
+    assert target.buddy_id is None
+
+
+@pytest.mark.asyncio
+async def test_patch_employee_requires_hr_admin(client, db_session, authenticated_employee):
+    emp, csrf_token = authenticated_employee
+    headers = {"X-CSRF-Token": csrf_token}
+
+    resp = await client.patch(
+        f"/employees/{emp.id}",
+        json={"department": "Finance"},
+        headers=headers,
+    )
+    assert resp.status_code == 403
+
+
 @pytest.mark.asyncio
 async def test_employee_creation_rejects_invalid_enum_values_and_domain(client, db_session, authenticated_admin):
     admin, csrf_token = authenticated_admin

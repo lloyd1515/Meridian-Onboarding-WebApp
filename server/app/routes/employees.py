@@ -5,7 +5,8 @@ from typing import List
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, RoleChecker
 from app.models import Employee
-from app.schemas import EmployeeOut, BackupEmployeeInput
+from app.schemas import EmployeeOut, BackupEmployeeInput, EmployeeUpdate
+from uuid import UUID
 from app.core.security import hash_password
 from app.core.checklist_templates import seed_checklist_tasks
 
@@ -72,3 +73,31 @@ async def save_employee(
     stmt = select(Employee).where(Employee.id == emp_data.id)
     result = await db.execute(stmt)
     return result.scalar_one()
+
+@router.patch("/{employee_id}", response_model=EmployeeOut)
+async def update_employee(
+    employee_id: UUID,
+    payload: EmployeeUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: Employee = Depends(RoleChecker(["hr_admin"]))
+):
+    employee = await db.get(Employee, employee_id)
+    if not employee:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found")
+
+    updates = payload.model_dump(exclude_unset=True)
+
+    if "buddy_id" in updates and updates["buddy_id"] is not None:
+        buddy = await db.get(Employee, updates["buddy_id"])
+        if not buddy:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Buddy ID {updates['buddy_id']} does not exist."
+            )
+
+    for field, value in updates.items():
+        setattr(employee, field, value)
+
+    await db.commit()
+    await db.refresh(employee)
+    return employee

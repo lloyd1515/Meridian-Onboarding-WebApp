@@ -98,6 +98,12 @@ class BackupEmployeeInput(BaseModel):
 
     _domain = field_validator("email")(_require_meridian_domain)
 
+class EmployeeUpdate(BaseModel):
+    department: Optional[str] = None
+    buddy_id: Optional[UUID] = None
+    hybrid_preference: Optional[HybridPreference] = None
+    assigned_desk: Optional[str] = None
+
 class BackupChecklistTaskInput(BaseModel):
     id: UUID
     employee_id: UUID
