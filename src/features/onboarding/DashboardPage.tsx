@@ -252,24 +252,32 @@ export const DashboardPage: React.FC = () => {
                     <span className="text-body-sm font-bold block">{isUserScheduled ? '🏢 OFFICE' : '🏠 REMOTE'}</span>
                   </div>
 
-                  <span className={`text-[9px] font-mono block ${isCapacityTight ? 'text-danger font-bold' : 'text-text-muted'}`}>
-                    Capacity: {totalOccupancy}/{OFFICE_CAPACITY}
-                  </span>
+                  {isPreboarding ? (
+                    <span className="text-[9px] font-mono block text-text-muted">
+                      🔒 Locked until your start date
+                    </span>
+                  ) : (
+                    <>
+                      <span className={`text-[9px] font-mono block ${isCapacityTight ? 'text-danger font-bold' : 'text-text-muted'}`}>
+                        Capacity: {totalOccupancy}/{OFFICE_CAPACITY}
+                      </span>
 
-                  <div className="mt-2 pt-2 border-t border-border flex flex-col gap-1 w-full text-left">
-                    <span className="text-[10px] font-mono uppercase text-text-muted">Buddy:</span>
-                    {isBuddyScheduled && isUserScheduled ? (
-                      <span className="text-[10px] text-success font-bold font-mono bg-green-50/50 px-1 border border-success/20 w-fit rounded">
-                        ✓ CO-PRESENCE
-                      </span>
-                    ) : isBuddyScheduled ? (
-                      <span className="text-[10px] text-blue-400 font-mono bg-blue-950/20 px-1 border border-blue-500/20 w-fit rounded">
-                        🏢 IN OFFICE
-                      </span>
-                    ) : (
-                      <span className="text-[10px] text-text-muted font-mono">REMOTE</span>
-                    )}
-                  </div>
+                      <div className="mt-2 pt-2 border-t border-border flex flex-col gap-1 w-full text-left">
+                        <span className="text-[10px] font-mono uppercase text-text-muted">Buddy:</span>
+                        {isBuddyScheduled && isUserScheduled ? (
+                          <span className="text-[10px] text-success font-bold font-mono bg-green-50/50 px-1 border border-success/20 w-fit rounded">
+                            ✓ CO-PRESENCE
+                          </span>
+                        ) : isBuddyScheduled ? (
+                          <span className="text-[10px] text-blue-400 font-mono bg-blue-950/20 px-1 border border-blue-500/20 w-fit rounded">
+                            🏢 IN OFFICE
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-text-muted font-mono">REMOTE</span>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </button>
               );
             })}
