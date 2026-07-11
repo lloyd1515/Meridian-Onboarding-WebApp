@@ -120,7 +120,7 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
                 activeDropdown === 'foundation' ? 'text-slate-400' : 'text-[#0B2A3D] hover:text-accent'
               }`}
             >
-              The foundation
+              My Onboarding
               <span className={`material-symbols-outlined text-[16px] transition-transform duration-200 ${activeDropdown === 'foundation' ? 'rotate-180' : ''}`}>
                 keyboard_arrow_down
               </span>
@@ -148,7 +148,7 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
                 activeDropdown === 'proof' ? 'text-slate-400' : 'text-[#0B2A3D] hover:text-accent'
               }`}
             >
-              The proof
+              Directory & Admin
               <span className={`material-symbols-outlined text-[16px] transition-transform duration-200 ${activeDropdown === 'proof' ? 'rotate-180' : ''}`}>
                 keyboard_arrow_down
               </span>
@@ -160,7 +160,7 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
               onClick={() => navigate('/checklist')}
               className="flex items-center gap-3 bg-[#0B2A3D] hover:bg-[#13313F] text-white px-5 py-2 rounded-full font-sans font-medium text-body-sm transition-colors shadow-sm"
             >
-              <span>Your brief</span>
+              <span>Checklist</span>
               <span className="flex items-center justify-center w-5 h-5 bg-white rounded-full text-[#0B2A3D]">
                 <span className="material-symbols-outlined text-[14px] font-bold">arrow_forward</span>
               </span>
@@ -251,7 +251,7 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
               <div className="max-w-[1600px] mx-auto px-6 py-8 md:py-12 grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-12">
                 <div className="md:col-span-1 flex flex-col gap-3">
                   <span className="font-mono text-[10px] text-accent uppercase tracking-widest font-semibold">
-                    foundation
+                    my onboarding
                   </span>
                   <h3 className="font-sans font-bold text-h4 text-[#0B2A3D]">
                     Your Journey Starts Here
@@ -336,7 +336,7 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
               <div className="max-w-[1600px] mx-auto px-6 py-8 md:py-12 grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-12">
                 <div className="md:col-span-1 flex flex-col gap-3">
                   <span className="font-mono text-[10px] text-accent uppercase tracking-widest font-semibold">
-                    proof & directory
+                    directory & admin
                   </span>
                   <h3 className="font-sans font-bold text-h4 text-[#0B2A3D]">
                     People & Operations
@@ -475,7 +475,7 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
             <div className="md:hidden absolute top-[100%] left-0 w-full bg-white border-t border-border shadow-xl rounded-b-2xl z-50 p-6 flex flex-col gap-6 font-sans">
               <div className="flex flex-col gap-2">
                 <span className="font-mono text-[10px] text-accent uppercase tracking-widest font-semibold">
-                  The foundation
+                  My Onboarding
                 </span>
                 <div className="flex flex-col gap-2 pl-2">
                   <button
@@ -515,7 +515,7 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
 
               <div className="flex flex-col gap-2">
                 <span className="font-mono text-[10px] text-accent uppercase tracking-widest font-semibold">
-                  The proof
+                  Directory & Admin
                 </span>
                 <div className="flex flex-col gap-2 pl-2">
                   {role === 'employee' ? (
@@ -563,7 +563,7 @@ export const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
                   onClick={() => navigate('/checklist')}
                   className="w-full flex items-center justify-between bg-[#0B2A3D] hover:bg-[#13313F] text-white px-5 py-3 rounded-full font-sans font-medium text-body-sm transition-colors shadow-sm"
                 >
-                  <span>Your brief</span>
+                  <span>Checklist</span>
                   <span className="flex items-center justify-center w-6 h-6 bg-white rounded-full text-[#0B2A3D]">
                     <span className="material-symbols-outlined text-[16px] font-bold">east</span>
                   </span>
