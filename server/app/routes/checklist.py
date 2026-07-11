@@ -88,6 +88,7 @@ async def complete_task(task_id: UUID, db: AsyncSession = Depends(get_db), curre
         return target_task
         
     target_task.status = "completed"
+    target_task.completed_at = datetime.datetime.utcnow()
     await recursive_unblock_tasks(tasks)
     await db.commit()
     return target_task

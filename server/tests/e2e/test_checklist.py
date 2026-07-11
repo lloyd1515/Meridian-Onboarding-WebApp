@@ -134,6 +134,62 @@ async def test_preboardee_cannot_complete_or_skip_tasks(client, db_session, auth
 
 
 @pytest.mark.asyncio
+async def test_complete_task_sets_completed_at(client, db_session, authenticated_newhire):
+    emp, csrf_token = authenticated_newhire
+    headers = {"X-CSRF-Token": csrf_token}
+
+    task = ChecklistTask(employee_id=emp.id, title="Task to complete", status="pending", dependencies=[])
+    db_session.add(task)
+    await db_session.commit()
+
+    before = datetime.datetime.utcnow()
+    resp = await client.post(f"/checklists/{task.id}/complete", headers=headers)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "completed"
+    assert body["completed_at"] is not None
+    completed_at = datetime.datetime.fromisoformat(body["completed_at"])
+    assert completed_at >= before
+
+
+@pytest.mark.asyncio
+async def test_backdated_task_is_flagged_overdue_via_due_date(client, db_session, authenticated_newhire):
+    emp, csrf_token = authenticated_newhire
+
+    overdue_task = ChecklistTask(
+        employee_id=emp.id,
+        title="Overdue task",
+        status="pending",
+        dependencies=[],
+        due_date=datetime.date.today() - datetime.timedelta(days=5),
+    )
+    upcoming_task = ChecklistTask(
+        employee_id=emp.id,
+        title="Not-yet-due task",
+        status="pending",
+        dependencies=[],
+        due_date=datetime.date.today() + datetime.timedelta(days=5),
+    )
+    db_session.add_all([overdue_task, upcoming_task])
+    await db_session.commit()
+
+    resp = await client.get("/checklists")
+    assert resp.status_code == 200
+    tasks = {t["title"]: t for t in resp.json()}
+
+    overdue = tasks["Overdue task"]
+    assert overdue["due_date"] == (datetime.date.today() - datetime.timedelta(days=5)).isoformat()
+    assert overdue["status"] != "completed"
+    # The API only reports due_date; the client is responsible for the
+    # "is it overdue" comparison against today, but we assert the raw data
+    # needed to make that call is present and correct here.
+    assert datetime.date.fromisoformat(overdue["due_date"]) < datetime.date.today()
+
+    not_yet = tasks["Not-yet-due task"]
+    assert datetime.date.fromisoformat(not_yet["due_date"]) > datetime.date.today()
+
+
+@pytest.mark.asyncio
 async def test_get_all_checklists_admin_only_and_aggregates_across_employees(client, db_session):
     hashed = hash_password("password123")
 
