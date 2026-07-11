@@ -27,6 +27,13 @@ export const RelationshipExplorer: React.FC<RelationshipExplorerProps> = ({
 
   const hrContact = employees.find(emp => emp.id === 'emp-admin') || null;
 
+  const handleSelectKeyDown = (e: React.KeyboardEvent, person: Employee) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setSelectedPerson(person);
+    }
+  };
+
   const handleCopySlackTemplate = (person: Employee, type: 'coffee' | 'question' | 'intro') => {
     let template = '';
     if (type === 'coffee') {
@@ -56,9 +63,13 @@ export const RelationshipExplorer: React.FC<RelationshipExplorerProps> = ({
           
           {deptHead && (
             <div className="flex flex-col items-center">
-              <div 
+              <div
                 onClick={() => setSelectedPerson(deptHead)}
-                className="cursor-pointer border border-border bg-surface px-4 py-2 text-center rounded-xl hover:border-accent transition-colors w-[220px] shadow-sm"
+                onKeyDown={(e) => handleSelectKeyDown(e, deptHead)}
+                tabIndex={0}
+                role="button"
+                aria-label={`View contact details for ${deptHead.name}, ${deptHead.role}`}
+                className="cursor-pointer border border-border bg-surface px-4 py-2 text-center rounded-xl hover:border-accent transition-colors w-[220px] shadow-sm focus:outline-none focus:ring-2 focus:ring-accent"
               >
                 <span className="text-[9px] font-mono border border-accent/20 px-1 py-0.5 text-accent uppercase bg-accent/5 rounded">Direct Manager / Head</span>
                 <h4 className="font-sans font-bold text-body-sm mt-1 text-text-primary">{deptHead.name}</h4>
@@ -71,9 +82,13 @@ export const RelationshipExplorer: React.FC<RelationshipExplorerProps> = ({
           <div className="flex gap-12 justify-center items-center w-full max-w-[560px]">
             
             {buddy && (
-              <div 
+              <div
                 onClick={() => setSelectedPerson(buddy)}
-                className="cursor-pointer border border-border bg-surface px-4 py-2 text-center rounded-xl hover:border-accent transition-colors w-[180px] shadow-sm"
+                onKeyDown={(e) => handleSelectKeyDown(e, buddy)}
+                tabIndex={0}
+                role="button"
+                aria-label={`View contact details for ${buddy.name}, ${buddy.role}`}
+                className="cursor-pointer border border-border bg-surface px-4 py-2 text-center rounded-xl hover:border-accent transition-colors w-[180px] shadow-sm focus:outline-none focus:ring-2 focus:ring-accent"
               >
                 <span className="text-[9px] font-mono border border-accent/20 px-1 py-0.5 text-accent uppercase bg-accent/5 rounded">Assigned Tech Buddy</span>
                 <h4 className="font-sans font-bold text-body-sm mt-1 text-text-primary">{buddy.name}</h4>
@@ -88,9 +103,13 @@ export const RelationshipExplorer: React.FC<RelationshipExplorerProps> = ({
             </div>
 
             {hrContact && (
-              <div 
+              <div
                 onClick={() => setSelectedPerson(hrContact)}
-                className="cursor-pointer border border-border bg-surface px-4 py-2 text-center rounded-xl hover:border-accent transition-colors w-[180px] shadow-sm"
+                onKeyDown={(e) => handleSelectKeyDown(e, hrContact)}
+                tabIndex={0}
+                role="button"
+                aria-label={`View contact details for ${hrContact.name}, ${hrContact.role}`}
+                className="cursor-pointer border border-border bg-surface px-4 py-2 text-center rounded-xl hover:border-accent transition-colors w-[180px] shadow-sm focus:outline-none focus:ring-2 focus:ring-accent"
               >
                 <span className="text-[9px] font-mono border border-accent/20 px-1 py-0.5 text-accent uppercase bg-accent/5 rounded">HR Specialist</span>
                 <h4 className="font-sans font-bold text-body-sm mt-1 text-text-primary">{hrContact.name}</h4>
@@ -106,10 +125,14 @@ export const RelationshipExplorer: React.FC<RelationshipExplorerProps> = ({
             <span className="text-[9px] font-mono text-text-muted uppercase tracking-widest mb-2">Department Colleagues ({currentUser.department})</span>
             <div className="flex flex-wrap gap-3 justify-center">
               {teammates.map(emp => (
-                <div 
+                <div
                   key={emp.id}
                   onClick={() => setSelectedPerson(emp)}
-                  className="cursor-pointer border border-border bg-surface px-3 py-1.5 text-center rounded-xl hover:border-text-primary transition-colors w-[130px] shadow-sm"
+                  onKeyDown={(e) => handleSelectKeyDown(e, emp)}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`View contact details for ${emp.name}, ${emp.role}`}
+                  className="cursor-pointer border border-border bg-surface px-3 py-1.5 text-center rounded-xl hover:border-text-primary transition-colors w-[130px] shadow-sm focus:outline-none focus:ring-2 focus:ring-accent"
                 >
                   <h5 className="font-sans font-bold text-[11px] text-text-primary truncate">{emp.name}</h5>
                   <p className="text-[9px] text-text-muted truncate font-sans">{emp.role}</p>

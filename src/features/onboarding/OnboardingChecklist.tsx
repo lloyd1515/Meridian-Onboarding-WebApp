@@ -488,12 +488,14 @@ export const OnboardingChecklist: React.FC = () => {
                                   />
                                   <button
                                     onClick={() => handleConfirmSkip(task.id, skipReason)}
+                                    aria-label="Confirm skip"
                                     className="w-8 h-8 flex items-center justify-center bg-success text-white rounded-full hover:bg-success/90 shrink-0 transition-colors"
                                   >
                                     <span className="material-symbols-outlined text-[16px] font-bold">check</span>
                                   </button>
                                   <button
                                     onClick={() => setActiveSkipTaskId(null)}
+                                    aria-label="Cancel skip"
                                     className="w-8 h-8 flex items-center justify-center bg-[#0B2A3D] text-white rounded-full hover:bg-[#13313F] shrink-0 transition-colors"
                                   >
                                     <span className="material-symbols-outlined text-[16px] font-bold">close</span>

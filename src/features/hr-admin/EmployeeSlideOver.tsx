@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Employee } from '../../services/db';
 
 export interface EmployeeSlideOverSubmitData {
@@ -41,6 +41,45 @@ export const EmployeeSlideOver: React.FC<EmployeeSlideOverProps> = ({ mode, empl
   const [formError, setFormError] = useState('');
 
   const isEdit = mode === 'edit';
+  const drawerRef = useRef<HTMLDivElement>(null);
+
+  // Minimal focus trap: keep Tab/Shift+Tab cycling within the drawer while
+  // it's open, and restore focus to whatever triggered it (the row's Edit
+  // button, or Add New Hire) once it closes.
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const focusableSelector = 'a[href], button:not([disabled]), textarea, input:not([disabled]), select, [tabindex]:not([tabindex="-1"])';
+    const getFocusable = (): HTMLElement[] =>
+      drawerRef.current ? Array.from(drawerRef.current.querySelectorAll<HTMLElement>(focusableSelector)) : [];
+
+    const focusables = getFocusable();
+    (focusables[0] ?? drawerRef.current)?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const items = getFocusable();
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      previouslyFocused?.focus();
+    };
+  }, [onClose]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,12 +105,20 @@ export const EmployeeSlideOver: React.FC<EmployeeSlideOverProps> = ({ mode, empl
 
   return (
     <div className="fixed inset-0 bg-[#000000]/40 z-50 flex justify-end">
-      <div className="bg-white border-l border-border w-full max-w-[800px] h-full p-6 flex flex-col md:flex-row gap-6 overflow-y-auto rounded-l-2xl shadow-2xl">
+      <div
+        ref={drawerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={isEdit ? 'Edit Employee' : 'Add New Hire'}
+        tabIndex={-1}
+        className="bg-white border-l border-border w-full max-w-[800px] h-full p-6 flex flex-col md:flex-row gap-6 overflow-y-auto rounded-l-2xl shadow-2xl focus:outline-none"
+      >
         <div className="flex-grow flex flex-col gap-4 max-w-[420px]">
           <div className="flex justify-between items-center border-b border-border pb-2">
             <h3 className="text-h2 font-bold text-[#0B2A3D]">{isEdit ? 'Edit Employee' : 'Add New Hire'}</h3>
             <button
               onClick={onClose}
+              aria-label="Close drawer"
               className="material-symbols-outlined text-[#0B2A3D] cursor-pointer md:hidden hover:text-red-500 transition-colors"
             >
               close
@@ -248,6 +295,7 @@ export const EmployeeSlideOver: React.FC<EmployeeSlideOverProps> = ({ mode, empl
             <h3 className="text-h2 font-bold text-[#0B2A3D]">Live Badge Preview</h3>
             <button
               onClick={onClose}
+              aria-label="Close drawer"
               className="material-symbols-outlined text-[#0B2A3D] cursor-pointer hidden md:block hover:text-red-500 transition-colors"
             >
               close
