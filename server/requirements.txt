@@ -10,3 +10,4 @@ argon2-cffi==23.1.0
 pyjwt==2.13.0
 python-multipart==0.0.32
 structlog==24.1.0
+slowapi==0.1.10

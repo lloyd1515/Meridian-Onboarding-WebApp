@@ -1,3 +1,12 @@
+import os
+
+# Must be set before any app.* module is imported: app.core.config.settings is
+# a module-level singleton read once at import time, and the rate limiter in
+# app.main is disabled when ENVIRONMENT == "testing" so the pytest suite's
+# repeated hits to the same endpoints don't trip it (see test_rate_limit.py
+# for a dedicated test with the limiter re-enabled).
+os.environ["ENVIRONMENT"] = "testing"
+
 import asyncio
 import pytest
 import pytest_asyncio
