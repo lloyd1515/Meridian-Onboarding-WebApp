@@ -1,6 +1,6 @@
 import pytest
 import datetime
-from sqlalchemy import select
+from sqlalchemy import select, Date, DateTime, Integer
 from sqlalchemy.exc import IntegrityError
 from app.models import Employee, ChecklistTask, ScheduleEntry
 
@@ -101,6 +101,47 @@ async def test_checklist_task_cascade_delete(db_session):
     # Verify task is cascade deleted
     stmt = select(ChecklistTask).where(ChecklistTask.employee_id == emp.id)
     assert (await db_session.execute(stmt)).scalars().all() == []
+
+def test_checklist_task_has_due_date_columns():
+    columns = ChecklistTask.__table__.columns
+    assert isinstance(columns["due_date"].type, Date)
+    assert columns["due_date"].nullable is True
+    assert isinstance(columns["completed_at"].type, DateTime)
+    assert columns["completed_at"].nullable is True
+    assert isinstance(columns["milestone_offset_days"].type, Integer)
+    assert columns["milestone_offset_days"].nullable is True
+
+
+@pytest.mark.asyncio
+async def test_checklist_task_due_date_fields_persist(db_session):
+    emp = Employee(
+        name="Due Date Column User",
+        email="due.date.column@meridian.com",
+        slack_handle="@due.date.column",
+        department="Engineering",
+        hire_date=datetime.date(2026, 1, 1),
+        hashed_password="password",
+    )
+    db_session.add(emp)
+    await db_session.flush()
+
+    task = ChecklistTask(
+        employee_id=emp.id,
+        title="Task with due date",
+        status="completed",
+        due_date=datetime.date(2026, 1, 31),
+        completed_at=datetime.datetime(2026, 1, 20, 12, 0, 0),
+        milestone_offset_days=30,
+    )
+    db_session.add(task)
+    await db_session.flush()
+
+    stmt = select(ChecklistTask).where(ChecklistTask.id == task.id)
+    retrieved = (await db_session.execute(stmt)).scalar_one()
+    assert retrieved.due_date == datetime.date(2026, 1, 31)
+    assert retrieved.completed_at == datetime.datetime(2026, 1, 20, 12, 0, 0)
+    assert retrieved.milestone_offset_days == 30
+
 
 @pytest.mark.asyncio
 async def test_schedule_unique_employee_date(db_session):

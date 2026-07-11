@@ -1,6 +1,6 @@
 import uuid
 import datetime
-from sqlalchemy import Column, String, ForeignKey, Date, DateTime, JSON, UniqueConstraint, Index, UUID, Boolean
+from sqlalchemy import Column, String, ForeignKey, Date, DateTime, JSON, UniqueConstraint, Index, UUID, Boolean, Integer
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -39,6 +39,11 @@ class ChecklistTask(Base):
     skip_reason = Column(String, nullable=True)
     blocked_by = Column(UUID(as_uuid=True), ForeignKey("checklist_tasks.id", ondelete="SET NULL"), nullable=True)
     dependencies = Column(JSON, nullable=True)
+    # Real due-date tracking (replaces the frontend's title-matching 30/60/90
+    # bucketing -- see checklist_templates.py's milestone_offset_days).
+    due_date = Column(Date, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    milestone_offset_days = Column(Integer, nullable=True)
 
     # Relationships
     employee = relationship("Employee", back_populates="tasks")
