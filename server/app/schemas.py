@@ -180,5 +180,16 @@ class QuestionOut(BaseModel):
     class Config:
         from_attributes = True
 
+class AuditLogOut(BaseModel):
+    id: UUID
+    actor_employee_id: Optional[UUID] = None
+    actor_name: Optional[str] = None
+    action: str
+    detail: Optional[dict] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 
 

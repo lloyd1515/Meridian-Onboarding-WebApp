@@ -253,3 +253,86 @@ async def test_backup_restore_rejects_wrong_confirmation_phrase(
     me_resp = await client.get("/employees/me")
     assert me_resp.json()["name"] == admin.name
     assert await _existing_audit_log_count(db_session) == before_count
+
+
+@pytest.mark.asyncio
+async def test_backup_restore_with_correct_phrase_creates_audit_log_entry(
+    client, db_session, authenticated_admin
+):
+    admin, csrf_token = authenticated_admin
+    headers = {"X-CSRF-Token": csrf_token}
+
+    export_resp = await client.get("/backup/export")
+    backup_data = export_resp.json()
+    backup_data["confirmation_phrase"] = "RESTORE"
+
+    resp = await client.post("/backup/restore", json=backup_data, headers=headers)
+    assert resp.status_code == 200
+    body = resp.json()
+
+    result = await db_session.execute(
+        select(AuditLog).order_by(AuditLog.created_at.desc())
+    )
+    entries = result.scalars().all()
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry.action == "backup_restore"
+    assert entry.actor_employee_id == admin.id
+    assert entry.detail == {
+        "employees_restored": body["employees_restored"],
+        "tasks_restored": body["tasks_restored"],
+        "schedules_restored": body["schedules_restored"],
+    }
+
+
+@pytest.mark.asyncio
+async def test_get_audit_log_requires_hr_admin(client, db_session):
+    hashed = hash_password("password123")
+    non_admin = Employee(
+        name="Regular Employee",
+        email="regular@meridian.com",
+        slack_handle="@regular",
+        role="employee",
+        department="Engineering",
+        hire_date=datetime.date(2022, 1, 15),
+        hashed_password=hashed,
+    )
+    db_session.add(non_admin)
+    await db_session.flush()
+
+    login_resp = await client.post(
+        "/auth/login", json={"email": "regular@meridian.com", "password": "password123"}
+    )
+    assert login_resp.status_code == 200
+
+    resp = await client.get("/backup/audit-log")
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_get_audit_log_returns_recent_entries_most_recent_first(
+    client, db_session, authenticated_admin
+):
+    admin, csrf_token = authenticated_admin
+    headers = {"X-CSRF-Token": csrf_token}
+
+    export_resp = await client.get("/backup/export")
+    backup_data = export_resp.json()
+    backup_data["confirmation_phrase"] = "RESTORE"
+
+    # Restore twice to create two audit log entries.
+    for _ in range(2):
+        export_resp = await client.get("/backup/export")
+        backup_data = export_resp.json()
+        backup_data["confirmation_phrase"] = "RESTORE"
+        restore_resp = await client.post("/backup/restore", json=backup_data, headers=headers)
+        assert restore_resp.status_code == 200
+
+    resp = await client.get("/backup/audit-log")
+    assert resp.status_code == 200
+    entries = resp.json()
+    assert len(entries) == 2
+    assert entries[0]["action"] == "backup_restore"
+    assert entries[0]["actor_name"] == admin.name
+    # Most recent first.
+    assert entries[0]["created_at"] >= entries[1]["created_at"]

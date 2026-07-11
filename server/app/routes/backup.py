@@ -3,10 +3,11 @@ from collections import deque
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, text
+from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.dependencies import RoleChecker
-from app.models import Employee, ChecklistTask, ScheduleEntry
-from app.schemas import BackupChecklistTaskInput, BackupPayload
+from app.models import Employee, ChecklistTask, ScheduleEntry, AuditLog
+from app.schemas import BackupChecklistTaskInput, BackupPayload, AuditLogOut
 
 router = APIRouter(prefix="/backup", tags=["Backup & Restore"])
 
@@ -106,8 +107,12 @@ async def export_database(db: AsyncSession = Depends(get_db)):
         "schedule_entries": exported_schedules
     }
 
-@router.post("/restore", dependencies=[admin_dependency])
-async def restore_database(payload: BackupPayload, db: AsyncSession = Depends(get_db)):
+@router.post("/restore")
+async def restore_database(
+    payload: BackupPayload,
+    db: AsyncSession = Depends(get_db),
+    current_user: Employee = Depends(RoleChecker(["hr_admin"])),
+):
     if payload.version != "1.0":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -204,11 +209,30 @@ async def restore_database(payload: BackupPayload, db: AsyncSession = Depends(ge
             db.add(schedule)
 
         await db.commit()
-        return {
-            "status": "success",
+
+        counts = {
             "employees_restored": len(payload.employees),
             "tasks_restored": len(payload.checklist_tasks),
-            "schedules_restored": len(payload.schedule_entries)
+            "schedules_restored": len(payload.schedule_entries),
+        }
+
+        # The restoring admin's own employee row may or may not be part of
+        # the payload just restored (a backup taken from a different
+        # environment, for instance) -- only reference it as the actor if it
+        # actually exists post-restore, otherwise leave the audit row
+        # actor-less rather than violate the FK.
+        actor_id = current_user.id if current_user.id in employee_map else None
+        audit_entry = AuditLog(
+            actor_employee_id=actor_id,
+            action="backup_restore",
+            detail=counts,
+        )
+        db.add(audit_entry)
+        await db.commit()
+
+        return {
+            "status": "success",
+            **counts,
         }
 
     except Exception as e:
@@ -217,3 +241,25 @@ async def restore_database(payload: BackupPayload, db: AsyncSession = Depends(ge
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Database restore failed: {str(e)}"
         )
+
+@router.get("/audit-log", response_model=list[AuditLogOut], dependencies=[admin_dependency])
+async def get_audit_log(db: AsyncSession = Depends(get_db)):
+    stmt = (
+        select(AuditLog)
+        .options(selectinload(AuditLog.actor))
+        .order_by(AuditLog.created_at.desc())
+        .limit(50)
+    )
+    result = await db.execute(stmt)
+    entries = result.scalars().all()
+    return [
+        AuditLogOut(
+            id=entry.id,
+            actor_employee_id=entry.actor_employee_id,
+            actor_name=entry.actor.name if entry.actor else None,
+            action=entry.action,
+            detail=entry.detail,
+            created_at=entry.created_at,
+        )
+        for entry in entries
+    ]
