@@ -80,6 +80,9 @@ export const TaskSchema = z.object({
   skipReason: z.string().nullable().optional(),
   blockedBy: z.string().nullable().optional(),
   dependencies: z.array(z.string()).default([]),
+  dueDate: z.string().nullable().optional(),
+  completedAt: z.string().nullable().optional(),
+  milestoneOffsetDays: z.number().nullable().optional(),
 });
 
 export const BackupSchema = z.object({
@@ -113,26 +116,24 @@ export function isNewHire(emp: Employee, referenceDate: string): boolean {
   return new Date(emp.hireDate).getTime() > new Date(referenceDate).getTime();
 }
 
-// Task titles from server/app/core/checklist_templates.py's _CORE_TASKS --
-// mirrored here because milestone timing isn't stored as task data, just
-// implied by template order. Update both lists together if the templates
-// change. Anything not in these two sets is a department capstone task
-// (_DEPARTMENT_CAPSTONE), which is always a 90-day milestone.
-const THIRTY_DAY_TASK_TITLES = new Set([
-  'Sign employment contract',
-  'Configure work laptop',
-  'First meeting with Buddy',
-]);
-const SIXTY_DAY_TASK_TITLES = new Set([
-  'Install corporate security software',
-  'Information security training',
-  'Meet the team members',
-]);
-
-export function taskMilestoneDay(taskTitle: string): 30 | 60 | 90 {
-  if (THIRTY_DAY_TASK_TITLES.has(taskTitle)) return 30;
-  if (SIXTY_DAY_TASK_TITLES.has(taskTitle)) return 60;
+// Real due-date-driven replacement for the old title-matching milestone
+// inference: the server now stores milestone_offset_days per task
+// (server/app/core/checklist_templates.py), computed at seed time from
+// hire_date. Bucketing off the offset directly (rather than re-deriving it
+// from dueDate - hireDate) means call sites no longer need the employee's
+// hireDate on hand just to group tasks.
+export function taskMilestoneBucket(task: Pick<Task, 'milestoneOffsetDays'>): 30 | 60 | 90 {
+  const offset = task.milestoneOffsetDays;
+  if (offset == null) return 90;
+  if (offset <= 30) return 30;
+  if (offset <= 60) return 60;
   return 90;
+}
+
+// True once a task's due date has passed and it hasn't been completed.
+export function isTaskOverdue(task: Pick<Task, 'dueDate' | 'status'>, referenceDate: string): boolean {
+  if (!task.dueDate || task.status === 'completed') return false;
+  return new Date(task.dueDate).getTime() < new Date(referenceDate).getTime();
 }
 
 // Baseline scheduler date mapping helper
@@ -157,6 +158,22 @@ function mapEmployeeToFrontend(emp: any): Employee {
     buddyId: emp.buddy_id,
     hybridPreference: emp.hybrid_preference || 'HYBRID',
     assignedDesk: emp.assigned_desk,
+  };
+}
+
+// Helper to convert snake_case checklist task keys from server to camelCase
+function mapTaskToFrontend(t: any): Task {
+  return {
+    id: t.id,
+    title: t.title,
+    description: t.description || '',
+    status: t.status,
+    skipReason: t.skip_reason,
+    blockedBy: t.blocked_by,
+    dependencies: t.dependencies || [],
+    dueDate: t.due_date,
+    completedAt: t.completed_at,
+    milestoneOffsetDays: t.milestone_offset_days,
   };
 }
 
@@ -222,15 +239,7 @@ export const getChecklists = async (): Promise<Record<string, Task[]>> => {
     const data = await res.json();
     const byEmployee: Record<string, Task[]> = {};
     data.forEach((t: any) => {
-      const task: Task = {
-        id: t.id,
-        title: t.title,
-        description: t.description || '',
-        status: t.status,
-        skipReason: t.skip_reason,
-        blockedBy: t.blocked_by,
-        dependencies: t.dependencies || [],
-      };
+      const task: Task = mapTaskToFrontend(t);
       if (!byEmployee[t.employee_id]) {
         byEmployee[t.employee_id] = [];
       }
@@ -248,15 +257,7 @@ export const getEmployeeChecklist = async (employeeId: string): Promise<Task[]> 
     const res = await customFetch(`${API_URL}/checklists/${employeeId}`, credentialsOptions);
     if (!res.ok) return [];
     const data = await res.json();
-    return data.map((t: any) => ({
-      id: t.id,
-      title: t.title,
-      description: t.description || '',
-      status: t.status,
-      skipReason: t.skip_reason,
-      blockedBy: t.blocked_by,
-      dependencies: t.dependencies || [],
-    }));
+    return data.map(mapTaskToFrontend);
   } catch (e) {
     console.error('Error fetching employee checklist:', e);
     return [];
@@ -508,15 +509,7 @@ export const generateBackupExport = async (): Promise<string> => {
     if (!checklists[t.employee_id]) {
       checklists[t.employee_id] = [];
     }
-    checklists[t.employee_id].push({
-      id: t.id,
-      title: t.title,
-      description: t.description || '',
-      status: t.status,
-      skipReason: t.skip_reason,
-      blockedBy: t.blocked_by,
-      dependencies: t.dependencies || []
-    });
+    checklists[t.employee_id].push(mapTaskToFrontend(t));
   });
 
   const scheduler: Record<string, string[]> = {
