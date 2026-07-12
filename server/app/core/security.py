@@ -1,4 +1,5 @@
 import jwt
+import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from argon2 import PasswordHasher
@@ -15,6 +16,12 @@ ph = PasswordHasher(
 
 def hash_password(password: str) -> str:
     return ph.hash(password)
+
+def generate_temporary_password() -> str:
+    """A one-time, cryptographically random credential for a newly-created
+    employee (see save_employee) -- never derived from client input, so a
+    new hire can never be silently locked out with an unknown password."""
+    return secrets.token_urlsafe(12)
 
 def verify_password(hashed_password: str, password: str) -> bool:
     try:

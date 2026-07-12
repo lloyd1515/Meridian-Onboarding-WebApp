@@ -1,7 +1,7 @@
 import uuid
 import pytest
 import datetime
-from app.core.security import hash_password
+from app.core.security import hash_password, verify_password
 from app.models import Employee, ChecklistTask, ScheduleEntry
 
 
@@ -58,6 +58,126 @@ async def test_add_new_hire_accepts_uuid_and_seeds_department_checklist(client, 
     titles = {t["title"] for t in tasks}
     assert "Shadow a client call" in titles  # Sales-specific capstone task
     assert "Submit first Pull Request (PR)" not in titles  # not Engineering
+
+
+@pytest.mark.asyncio
+async def test_new_hire_creation_returns_working_temp_password_not_empty_hash(client, db_session, authenticated_admin):
+    """Regression test for the critical bug: the frontend used to always send
+    hashed_password='', which meant a new hire's real stored credential was
+    the argon2 hash of the empty string -- permanently unable to log in, with
+    no recovery path. The fix: the server generates a random temp password,
+    hashes *that*, and returns the plaintext once in the response."""
+    admin, csrf_token = authenticated_admin
+    headers = {"X-CSRF-Token": csrf_token}
+
+    new_id = str(uuid.uuid4())
+    payload = {
+        "id": new_id,
+        "name": "Temp Password Hire",
+        "email": "temp.password.hire@meridian.com",
+        "slack_handle": "@temp.password.hire",
+        "role": "employee",
+        "department": "Engineering",
+        "hire_date": "2026-08-01",
+        "buddy_id": None,
+        "hybrid_preference": "HYBRID",
+        "assigned_desk": None,
+    }
+
+    resp = await client.post("/employees", json=payload, headers=headers)
+    assert resp.status_code == 200
+    body = resp.json()
+    temp_password = body["temporary_password"]
+    assert temp_password
+    assert len(temp_password) >= 12
+
+    new_emp = await db_session.get(Employee, uuid.UUID(new_id))
+    assert not verify_password(new_emp.hashed_password, "")  # not the empty-string hash bug
+    assert verify_password(new_emp.hashed_password, temp_password)
+
+    # The temp password must actually work to log in.
+    login_resp = await client.post("/auth/login", json={
+        "email": "temp.password.hire@meridian.com",
+        "password": temp_password,
+    })
+    assert login_resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_temporary_password_never_returned_on_read(client, db_session, authenticated_admin):
+    admin, csrf_token = authenticated_admin
+    headers = {"X-CSRF-Token": csrf_token}
+
+    new_id = str(uuid.uuid4())
+    payload = {
+        "id": new_id,
+        "name": "Read Safety Hire",
+        "email": "read.safety.hire@meridian.com",
+        "slack_handle": "@read.safety.hire",
+        "role": "employee",
+        "department": "Engineering",
+        "hire_date": "2026-08-01",
+        "buddy_id": None,
+        "hybrid_preference": "HYBRID",
+        "assigned_desk": None,
+    }
+    resp = await client.post("/employees", json=payload, headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()["temporary_password"]
+
+    list_resp = await client.get("/employees")
+    assert list_resp.status_code == 200
+    assert all("temporary_password" not in e for e in list_resp.json())
+
+    me_resp = await client.get("/employees/me")
+    assert me_resp.status_code == 200
+    assert "temporary_password" not in me_resp.json()
+
+
+@pytest.mark.asyncio
+async def test_existing_employee_update_via_post_employees_ignores_password_field(client, db_session, authenticated_admin):
+    """The update branch of POST /employees no longer accepts a password at
+    all -- EmployeeSaveInput has no password field, matching the more scoped
+    PATCH /employees/{id}. A raw (non-argon2) value sent by any caller must
+    have no effect on the stored credential."""
+    admin, csrf_token = authenticated_admin
+    headers = {"X-CSRF-Token": csrf_token}
+
+    existing = Employee(
+        name="Existing Person",
+        email="existing.person@meridian.com",
+        slack_handle="@existing.person",
+        role="employee",
+        department="Engineering",
+        hire_date=datetime.date(2022, 1, 15),
+        hashed_password=hash_password("original-password123"),
+    )
+    db_session.add(existing)
+    await db_session.flush()
+    existing_id = str(existing.id)
+    original_hash = existing.hashed_password
+
+    payload = {
+        "id": existing_id,
+        "name": "Existing Person Updated",
+        "email": "existing.person@meridian.com",
+        "slack_handle": "@existing.person",
+        "role": "employee",
+        "department": "Sales",
+        "hire_date": "2022-01-15",
+        "buddy_id": None,
+        "hybrid_preference": "HYBRID",
+        "assigned_desk": None,
+        "hashed_password": "attacker-supplied-plaintext",
+    }
+    resp = await client.post("/employees", json=payload, headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()["temporary_password"] is None
+
+    await db_session.refresh(existing)
+    assert existing.department == "Sales"  # other fields still update
+    assert existing.hashed_password == original_hash  # password untouched
+    assert existing.hashed_password != "attacker-supplied-plaintext"
 
 
 @pytest.fixture

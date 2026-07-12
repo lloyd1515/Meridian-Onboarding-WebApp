@@ -7,9 +7,9 @@ from typing import List
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, RoleChecker
 from app.models import Employee, ChecklistTask, ScheduleEntry
-from app.schemas import EmployeeOut, BackupEmployeeInput, EmployeeUpdate, BuddyViewResponse, BuddyViewEntry, BuddyStuckTask
+from app.schemas import EmployeeOut, EmployeeSaveInput, EmployeeCreateOut, EmployeeUpdate, BuddyViewResponse, BuddyViewEntry, BuddyStuckTask
 from uuid import UUID
-from app.core.security import hash_password
+from app.core.security import hash_password, generate_temporary_password
 from app.core.checklist_templates import seed_checklist_tasks
 
 router = APIRouter(prefix="/employees", tags=["Employees"])
@@ -149,16 +149,20 @@ async def list_employees(
     employees = result.scalars().all()
     return employees
 
-@router.post("", response_model=EmployeeOut)
+@router.post("", response_model=EmployeeCreateOut)
 async def save_employee(
-    emp_data: BackupEmployeeInput,
+    emp_data: EmployeeSaveInput,
     db: AsyncSession = Depends(get_db),
     current_user: Employee = Depends(RoleChecker(["hr_admin"]))
 ):
     stmt = select(Employee).where(Employee.id == emp_data.id)
     result = await db.execute(stmt)
     existing = result.scalar_one_or_none()
-    
+
+    # Only a brand-new employee gets a temp password; it's returned once,
+    # below, and never persisted anywhere in plaintext.
+    temporary_password = None
+
     if existing:
         existing.name = emp_data.name
         existing.email = emp_data.email
@@ -169,9 +173,18 @@ async def save_employee(
         existing.buddy_id = emp_data.buddy_id
         existing.hybrid_preference = emp_data.hybrid_preference
         existing.assigned_desk = emp_data.assigned_desk
-        if emp_data.hashed_password:
-            existing.hashed_password = emp_data.hashed_password
+        # Password changes are intentionally not supported through this
+        # create/update endpoint -- EmployeeSaveInput has no password field,
+        # matching the scoped PATCH /employees/{id} endpoint (EmployeeUpdate),
+        # which never accepted one either.
     else:
+        # Never hash a client-supplied value for a new hire: there is no
+        # signup-completion/invite flow, so a client-controlled password here
+        # (or the empty string the old frontend always sent) would either be
+        # attacker-chosen or permanently unknown to the new hire. Generate a
+        # random one-time credential server-side instead and hand it back to
+        # the HR admin who created the account.
+        temporary_password = generate_temporary_password()
         new_emp = Employee(
             id=emp_data.id,
             name=emp_data.name,
@@ -183,7 +196,7 @@ async def save_employee(
             buddy_id=emp_data.buddy_id,
             hybrid_preference=emp_data.hybrid_preference,
             assigned_desk=emp_data.assigned_desk,
-            hashed_password=emp_data.hashed_password if emp_data.hashed_password.startswith("$argon2id$") else hash_password(emp_data.hashed_password)
+            hashed_password=hash_password(temporary_password)
         )
         db.add(new_emp)
         await db.flush()
@@ -192,10 +205,13 @@ async def save_employee(
         # it silently fell back to before.
         await seed_checklist_tasks(db, new_emp.id, new_emp.department)
     await db.commit()
-    
+
     stmt = select(Employee).where(Employee.id == emp_data.id)
     result = await db.execute(stmt)
-    return result.scalar_one()
+    employee = result.scalar_one()
+    response = EmployeeCreateOut.model_validate(employee)
+    response.temporary_password = temporary_password
+    return response
 
 @router.patch("/{employee_id}", response_model=EmployeeOut)
 async def update_employee(

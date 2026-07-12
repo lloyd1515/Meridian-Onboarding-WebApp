@@ -98,6 +98,35 @@ class BackupEmployeeInput(BaseModel):
 
     _domain = field_validator("email")(_require_meridian_domain)
 
+# Input for POST /employees (save_employee -- create-or-update via the HR
+# directory UI). Deliberately has no password field: a new employee's
+# password is always generated server-side (see generate_temporary_password),
+# and this endpoint's update branch no longer accepts password changes at
+# all. This is distinct from BackupEmployeeInput, which legitimately carries
+# an existing argon2 hash through the admin-only backup export/restore round
+# trip (server/app/routes/backup.py).
+class EmployeeSaveInput(BaseModel):
+    id: UUID
+    name: str
+    email: str
+    slack_handle: str
+    role: EmployeeRole
+    department: str
+    hire_date: date
+    buddy_id: Optional[UUID] = None
+    hybrid_preference: Optional[HybridPreference] = None
+    assigned_desk: Optional[str] = None
+
+    _domain = field_validator("email")(_require_meridian_domain)
+
+# Response model for POST /employees only. temporary_password is populated
+# solely on creation of a brand-new employee, carrying the one-time plaintext
+# temp password back to the HR admin who just created the account -- it must
+# never be added to EmployeeOut itself, which backs GET /employees and
+# GET /employees/me and would otherwise leak it on every subsequent read.
+class EmployeeCreateOut(EmployeeOut):
+    temporary_password: Optional[str] = None
+
 class EmployeeUpdate(BaseModel):
     department: Optional[str] = None
     buddy_id: Optional[UUID] = None
