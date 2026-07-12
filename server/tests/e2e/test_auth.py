@@ -106,6 +106,42 @@ def datetime_date_helper():
 
 
 @pytest.mark.asyncio
+async def test_signup_immediately_followed_by_login_does_not_collide(client, db_session):
+    # Regression test: signup mints a refresh token, and the frontend immediately
+    # calls /auth/login right after a successful signup. Both calls can happen in
+    # the same wall-clock second for the same user, so without a unique jti claim
+    # the two refresh-token JWTs are byte-identical and the second insert trips
+    # the DB's unique constraint on RefreshToken.token (surfaced as a 409).
+    signup_data = {
+        "name": "Race Condition User",
+        "email": "race.user@meridian.com",
+        "slack_handle": "@race.user",
+        "role": "employee",
+        "department": "Engineering",
+        "hire_date": "2025-05-01",
+        "password": "password123",
+        "hybrid_preference": "HYBRID",
+    }
+    signup_resp = await client.post("/auth/signup", json=signup_data)
+    assert signup_resp.status_code == 200
+
+    login_resp = await client.post("/auth/login", json={
+        "email": "race.user@meridian.com",
+        "password": "password123",
+    })
+    assert login_resp.status_code == 200
+    assert "refresh_token" in login_resp.cookies
+
+
+def test_create_refresh_token_same_second_calls_are_unique():
+    from app.core.security import create_refresh_token
+
+    token_a = create_refresh_token({"sub": "same.second@meridian.com"})
+    token_b = create_refresh_token({"sub": "same.second@meridian.com"})
+    assert token_a != token_b
+
+
+@pytest.mark.asyncio
 async def test_auth_rejects_non_meridian_email_domain(client, db_session):
     signup_data = {
         "name": "Outside R",

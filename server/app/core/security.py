@@ -1,5 +1,6 @@
 import jwt
 from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 from argon2 import PasswordHasher
 from app.core.config import settings
 
@@ -39,7 +40,11 @@ def create_refresh_token(data: dict, expires_delta: timedelta = None) -> str:
         expire = now + expires_delta
     else:
         expire = now + timedelta(days=7)
-    to_encode.update({"exp": int(expire.timestamp())})
+    # A unique jti ensures two refresh tokens minted for the same user in the
+    # same second (e.g. signup immediately followed by an auto-login) never
+    # produce identical JWTs, which would collide on the DB's unique
+    # constraint on RefreshToken.token.
+    to_encode.update({"exp": int(expire.timestamp()), "jti": str(uuid4())})
     return jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
 def verify_token(token: str) -> dict:
