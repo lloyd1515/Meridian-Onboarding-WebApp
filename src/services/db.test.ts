@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { taskMilestoneBucket, isTaskOverdue, Task, generateBackupExport, validateAndRestoreBackup, saveScheduler } from './db';
+import { taskMilestoneBucket, isTaskOverdue, Task, generateBackupExport, validateAndRestoreBackup, saveScheduler, getSlackConfigured, sendSlackMessage } from './db';
 
 const baseTask: Task = {
   id: 't1',
@@ -201,5 +201,65 @@ describe('saveScheduler', () => {
     }));
 
     await expect(saveScheduler({})).rejects.toThrow(/Saved 5 of 210.*205 failed/);
+  });
+});
+
+describe('getSlackConfigured', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('returns true when the backend reports the webhook is configured', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ sent: false, configured: true }),
+    }));
+
+    await expect(getSlackConfigured()).resolves.toBe(true);
+  });
+
+  it('returns false when the backend reports the webhook is not configured', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ sent: false, configured: false }),
+    }));
+
+    await expect(getSlackConfigured()).resolves.toBe(false);
+  });
+
+  it('returns false (not an error) when the status request fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+
+    await expect(getSlackConfigured()).resolves.toBe(false);
+  });
+});
+
+describe('sendSlackMessage', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('resolves true when the backend confirms delivery', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ sent: true, configured: true }),
+    }));
+
+    await expect(sendSlackMessage('Hi @buddy!')).resolves.toBe(true);
+  });
+
+  it('resolves false when the webhook is not configured (graceful no-op)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ sent: false, configured: false }),
+    }));
+
+    await expect(sendSlackMessage('Hi @buddy!')).resolves.toBe(false);
+  });
+
+  it('resolves false when the request itself fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+
+    await expect(sendSlackMessage('Hi @buddy!')).resolves.toBe(false);
   });
 });

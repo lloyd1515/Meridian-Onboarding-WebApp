@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useDb } from '../../context/DbContext';
-import { getEmployeeChecklist, saveEmployeeChecklist, isTaskOverdue, Task, Employee } from '../../services/db';
+import { getEmployeeChecklist, saveEmployeeChecklist, isTaskOverdue, Task, Employee, getSlackConfigured, sendSlackMessage } from '../../services/db';
 
 export const OnboardingChecklist: React.FC = () => {
   const { currentUser, simulationDate } = useAuth();
@@ -15,7 +15,11 @@ export const OnboardingChecklist: React.FC = () => {
   const [showParticlesForId, setShowParticlesForId] = useState<string | null>(null);
   const [srAnnouncement, setSrAnnouncement] = useState<string>('');
   const [copiedSlack, setCopiedSlack] = useState<boolean>(false);
+  const [slackConfigured, setSlackConfigured] = useState<boolean>(false);
+  const [sendingSlack, setSendingSlack] = useState<boolean>(false);
+  const [slackSent, setSlackSent] = useState<boolean>(false);
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sendTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 
   const loadTasks = async () => {
@@ -27,6 +31,10 @@ export const OnboardingChecklist: React.FC = () => {
   useEffect(() => {
     loadTasks();
   }, [currentUser]);
+
+  useEffect(() => {
+    getSlackConfigured().then(setSlackConfigured);
+  }, []);
 
   const handleCompleteTask = async (taskId: string) => {
     if (!currentUser) return;
@@ -203,6 +211,24 @@ export const OnboardingChecklist: React.FC = () => {
     }
   };
 
+  const handleSendSlackIntro = async () => {
+    const msg = formatSlackIntroMessage(assignedBuddy?.slackHandle, currentUser?.name);
+
+    if (sendTimeoutRef.current) {
+      clearTimeout(sendTimeoutRef.current);
+    }
+
+    setSendingSlack(true);
+    const sent = await sendSlackMessage(msg);
+    setSendingSlack(false);
+    setSlackSent(sent);
+    setSrAnnouncement(sent ? "Slack message sent." : "Failed to send Slack message.");
+    sendTimeoutRef.current = setTimeout(() => {
+      setSlackSent(false);
+      setSrAnnouncement("");
+    }, 3000);
+  };
+
   return (
     <>
       <div aria-live="polite" className="sr-only">
@@ -266,6 +292,18 @@ export const OnboardingChecklist: React.FC = () => {
               <span className="material-symbols-outlined text-[14px]">content_copy</span>
               <span>{copiedSlack ? 'Copied to Clipboard!' : 'Copy Slack Template'}</span>
             </button>
+            {slackConfigured && (
+              <button
+                type="button"
+                onClick={handleSendSlackIntro}
+                disabled={sendingSlack}
+                className="px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full text-xs font-mono text-white flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Send Slack intro message"
+              >
+                <span className="material-symbols-outlined text-[14px]">send</span>
+                <span>{sendingSlack ? 'Sending...' : slackSent ? 'Sent to Slack!' : 'Send to Slack'}</span>
+              </button>
+            )}
           </div>
         </div>
       )}

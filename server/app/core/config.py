@@ -1,5 +1,5 @@
 import json
-from typing import List, Union
+from typing import List, Optional, Union
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -28,6 +28,11 @@ class Settings(BaseSettings):
 
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = Field(default=["http://localhost:5173", "http://127.0.0.1:5173"])
+
+    # Slack webhook (optional): when unset, the /notifications/slack endpoint
+    # no-ops instead of erroring, so deployments without Slack configured still
+    # work via the existing copy-to-clipboard fallback.
+    SLACK_WEBHOOK_URL: Optional[str] = Field(default=None)
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod

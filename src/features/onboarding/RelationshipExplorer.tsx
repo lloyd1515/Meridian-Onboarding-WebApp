@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { Employee } from '../../services/db';
+import React, { useEffect, useState } from 'react';
+import { Employee, getSlackConfigured, sendSlackMessage } from '../../services/db';
 
 interface RelationshipExplorerProps {
   currentUser: Employee | null;
   employees: Employee[];
 }
+
+type SlackTemplateType = 'coffee' | 'question' | 'intro';
 
 export const RelationshipExplorer: React.FC<RelationshipExplorerProps> = ({
   currentUser,
@@ -12,6 +14,13 @@ export const RelationshipExplorer: React.FC<RelationshipExplorerProps> = ({
 }) => {
   const [selectedPerson, setSelectedPerson] = useState<Employee | null>(null);
   const [copiedText, setCopiedText] = useState<string | null>(null);
+  const [slackConfigured, setSlackConfigured] = useState<boolean>(false);
+  const [sendingText, setSendingText] = useState<string | null>(null);
+  const [sentText, setSentText] = useState<string | null>(null);
+
+  useEffect(() => {
+    getSlackConfigured().then(setSlackConfigured);
+  }, []);
 
   if (!currentUser) return null;
 
@@ -34,19 +43,30 @@ export const RelationshipExplorer: React.FC<RelationshipExplorerProps> = ({
     }
   };
 
-  const handleCopySlackTemplate = (person: Employee, type: 'coffee' | 'question' | 'intro') => {
-    let template = '';
+  const formatSlackTemplate = (person: Employee, type: SlackTemplateType): string => {
     if (type === 'coffee') {
-      template = `Hi ${person.name.split(' ')[0]}! Want to grab a virtual or in-office coffee this week to get to know each other?`;
+      return `Hi ${person.name.split(' ')[0]}! Want to grab a virtual or in-office coffee this week to get to know each other?`;
     } else if (type === 'question') {
-      template = `Hi ${person.name.split(' ')[0]}! Could I ask you a quick project question whenever you have 5 minutes free? Thanks!`;
-    } else if (type === 'intro') {
-      template = `Hi there! My name is ${currentUser.name} and I recently joined the team as ${currentUser.role}. Nice to meet you!`;
+      return `Hi ${person.name.split(' ')[0]}! Could I ask you a quick project question whenever you have 5 minutes free? Thanks!`;
     }
+    return `Hi there! My name is ${currentUser.name} and I recently joined the team as ${currentUser.role}. Nice to meet you!`;
+  };
 
-    navigator.clipboard.writeText(template);
+  const handleCopySlackTemplate = (person: Employee, type: SlackTemplateType) => {
+    navigator.clipboard.writeText(formatSlackTemplate(person, type));
     setCopiedText(`${person.id}-${type}`);
     setTimeout(() => setCopiedText(null), 2000);
+  };
+
+  const handleSendSlackTemplate = async (person: Employee, type: SlackTemplateType) => {
+    const key = `${person.id}-${type}`;
+    setSendingText(key);
+    const sent = await sendSlackMessage(formatSlackTemplate(person, type));
+    setSendingText(null);
+    if (sent) {
+      setSentText(key);
+      setTimeout(() => setSentText(null), 2000);
+    }
   };
 
   return (
@@ -165,6 +185,17 @@ export const RelationshipExplorer: React.FC<RelationshipExplorerProps> = ({
                   </span>
                 </span>
               </button>
+              {slackConfigured && (
+                <button
+                  onClick={() => handleSendSlackTemplate(selectedPerson, 'coffee')}
+                  disabled={sendingText === `${selectedPerson.id}-coffee`}
+                  aria-label="Send coffee invite to Slack"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 border border-[#0B2A3D] text-[#0B2A3D] hover:bg-neutral-100 rounded-full transition-all text-caption font-semibold disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined text-[14px]">send</span>
+                  <span>{sentText === `${selectedPerson.id}-coffee` ? 'Sent!' : 'Send'}</span>
+                </button>
+              )}
               <button
                 onClick={() => handleCopySlackTemplate(selectedPerson, 'question')}
                 className="inline-flex items-center justify-between gap-2 px-3 py-1.5 border border-[#0B2A3D] text-[#0B2A3D] hover:bg-neutral-100 rounded-full transition-all text-caption font-semibold"
@@ -176,6 +207,17 @@ export const RelationshipExplorer: React.FC<RelationshipExplorerProps> = ({
                   </span>
                 </span>
               </button>
+              {slackConfigured && (
+                <button
+                  onClick={() => handleSendSlackTemplate(selectedPerson, 'question')}
+                  disabled={sendingText === `${selectedPerson.id}-question`}
+                  aria-label="Send question to Slack"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 border border-[#0B2A3D] text-[#0B2A3D] hover:bg-neutral-100 rounded-full transition-all text-caption font-semibold disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined text-[14px]">send</span>
+                  <span>{sentText === `${selectedPerson.id}-question` ? 'Sent!' : 'Send'}</span>
+                </button>
+              )}
               <button
                 onClick={() => handleCopySlackTemplate(selectedPerson, 'intro')}
                 className="inline-flex items-center justify-between gap-2 px-3 py-1.5 border border-[#0B2A3D] text-[#0B2A3D] hover:bg-neutral-100 rounded-full transition-all text-caption font-semibold"
@@ -187,6 +229,17 @@ export const RelationshipExplorer: React.FC<RelationshipExplorerProps> = ({
                   </span>
                 </span>
               </button>
+              {slackConfigured && (
+                <button
+                  onClick={() => handleSendSlackTemplate(selectedPerson, 'intro')}
+                  disabled={sendingText === `${selectedPerson.id}-intro`}
+                  aria-label="Send introduction to Slack"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 border border-[#0B2A3D] text-[#0B2A3D] hover:bg-neutral-100 rounded-full transition-all text-caption font-semibold disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined text-[14px]">send</span>
+                  <span>{sentText === `${selectedPerson.id}-intro` ? 'Sent!' : 'Send'}</span>
+                </button>
+              )}
             </div>
           </div>
         )}

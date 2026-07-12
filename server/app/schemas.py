@@ -221,5 +221,12 @@ class AuditLogOut(BaseModel):
     class Config:
         from_attributes = True
 
+class SlackMessageRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=4000)
+
+class SlackMessageResponse(BaseModel):
+    sent: bool
+    configured: bool
+
 
 
