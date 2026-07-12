@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { taskMilestoneBucket, isTaskOverdue, Task, generateBackupExport, validateAndRestoreBackup, saveScheduler, getSlackConfigured, sendSlackMessage } from './db';
+import { taskMilestoneBucket, isTaskOverdue, Task, generateBackupExport, validateAndRestoreBackup, saveScheduler, saveEmployeeChecklist, getSlackConfigured, sendSlackMessage } from './db';
 
 const baseTask: Task = {
   id: 't1',
@@ -201,6 +201,46 @@ describe('saveScheduler', () => {
     }));
 
     await expect(saveScheduler({})).rejects.toThrow(/Saved 5 of 210.*205 failed/);
+  });
+});
+
+describe('saveEmployeeChecklist', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const currentTasks = [
+    { ...baseTask, id: 't1', status: 'pending' as const },
+  ];
+
+  it('resolves without error when the complete request succeeds', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string) => {
+      if (url.toString().includes('/checklists/t1/complete')) {
+        return { ok: true, json: async () => ({}) };
+      }
+      return { ok: true, json: async () => currentTasks };
+    }));
+
+    await expect(
+      saveEmployeeChecklist('emp-1', [{ ...baseTask, id: 't1', status: 'completed' }])
+    ).resolves.toBeUndefined();
+  });
+
+  it('throws instead of silently reporting success when the backend rejects the change (e.g. preboarding 403)', async () => {
+    // Regression test: this used to be the shape of the demo-breaking bug --
+    // saveEmployeeChecklist never checked res.ok, so a preboarding account's
+    // "Complete Task"/"Skip Task" clicks showed full UI success even though
+    // the server 403'd and discarded the change; only a reload revealed it.
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string) => {
+      if (url.toString().includes('/checklists/t1/complete')) {
+        return { ok: false, status: 403, json: async () => ({ detail: 'Checklist tasks can only be completed from your start date onward' }) };
+      }
+      return { ok: true, json: async () => currentTasks };
+    }));
+
+    await expect(
+      saveEmployeeChecklist('emp-1', [{ ...baseTask, id: 't1', status: 'completed' }])
+    ).rejects.toThrow(/Saved 0 of 1 task updates -- 1 failed/);
   });
 });
 

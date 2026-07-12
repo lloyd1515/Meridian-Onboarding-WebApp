@@ -82,6 +82,41 @@ async def authenticated_employee(client, db_session):
     return emp, csrf_token
 
 
+@pytest.fixture
+async def authenticated_preboardee(client, db_session):
+    hashed = hash_password("password123")
+    emp = Employee(
+        name="Future New Hire",
+        email="future.hire@meridian.com",
+        slack_handle="@future.hire",
+        role="preboardee",
+        department="Engineering",
+        hire_date=datetime.date(2099, 1, 15),
+        hashed_password=hashed,
+    )
+    db_session.add(emp)
+    await db_session.flush()
+
+    login_data = {"email": "future.hire@meridian.com", "password": "password123"}
+    resp = await client.post("/auth/login", json=login_data)
+    assert resp.status_code == 200
+    csrf_token = resp.cookies["csrf_token"]
+    return emp, csrf_token
+
+
+@pytest.mark.asyncio
+async def test_list_employees_allows_preboardee_role(client, db_session, authenticated_preboardee):
+    # Regression test: GET /employees used to exclude the "preboardee" role,
+    # which broke buddy/colleague resolution for preboarding accounts (their
+    # buddy_id is set correctly server-side, but the frontend's buddy lookup
+    # scans this list and would silently fall back to "no buddy").
+    emp, _csrf_token = authenticated_preboardee
+    resp = await client.get("/employees")
+    assert resp.status_code == 200
+    emails = {e["email"] for e in resp.json()}
+    assert emp.email in emails
+
+
 @pytest.mark.asyncio
 async def test_patch_employee_updates_editable_fields(client, db_session, authenticated_admin):
     admin, csrf_token = authenticated_admin

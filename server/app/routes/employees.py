@@ -137,7 +137,12 @@ async def get_buddy_view(
 @router.get("", response_model=List[EmployeeOut])
 async def list_employees(
     db: AsyncSession = Depends(get_db),
-    current_user: Employee = Depends(RoleChecker(["hr_admin", "employee"]))
+    # "preboardee" is a real, active employee state (a new hire who hasn't
+    # started yet), not a deleted/invalid one -- excluding it here broke
+    # buddy/colleague resolution for preboarding accounts (they'd fall back
+    # to fetching only themselves via /employees/me), even though their
+    # buddy_id is set correctly server-side.
+    current_user: Employee = Depends(RoleChecker(["hr_admin", "employee", "preboardee"]))
 ):
     stmt = select(Employee).order_by(Employee.name)
     result = await db.execute(stmt)

@@ -14,6 +14,7 @@ export const OnboardingChecklist: React.FC = () => {
   const [justUnlockedTaskId, setJustUnlockedTaskId] = useState<string | null>(null);
   const [showParticlesForId, setShowParticlesForId] = useState<string | null>(null);
   const [srAnnouncement, setSrAnnouncement] = useState<string>('');
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [copiedSlack, setCopiedSlack] = useState<boolean>(false);
   const [slackConfigured, setSlackConfigured] = useState<boolean>(false);
   const [sendingSlack, setSendingSlack] = useState<boolean>(false);
@@ -62,7 +63,17 @@ export const OnboardingChecklist: React.FC = () => {
     });
 
     setTasks(finalTasks);
-    await saveEmployeeChecklist(currentUser.id, finalTasks);
+    setSaveError(null);
+    try {
+      await saveEmployeeChecklist(currentUser.id, finalTasks);
+    } catch (err: any) {
+      // The optimistic update above must not be left standing if the backend
+      // rejected the change (e.g. a preboarding account hitting the server's
+      // hire-date gate) -- reload the real, persisted state and tell the user.
+      setSaveError(err.message || 'Failed to save task completion.');
+      await loadTasks();
+      return;
+    }
 
     if (newlyUnlocked) {
       const unlockedId = (newlyUnlocked as Task).id;
@@ -107,9 +118,16 @@ export const OnboardingChecklist: React.FC = () => {
     });
 
     setTasks(finalTasks);
-    await saveEmployeeChecklist(currentUser.id, finalTasks);
+    setSaveError(null);
     setActiveSkipTaskId(null);
     setSkipReason('');
+    try {
+      await saveEmployeeChecklist(currentUser.id, finalTasks);
+    } catch (err: any) {
+      setSaveError(err.message || 'Failed to save task skip.');
+      await loadTasks();
+      return;
+    }
 
     if (newlyUnlocked) {
       const unlockedId = (newlyUnlocked as Task).id;
@@ -269,6 +287,12 @@ export const OnboardingChecklist: React.FC = () => {
           <p className="text-text-muted text-body leading-[1.5] font-sans">Complete these critical tasks to unlock full system access.</p>
         </div>
       </div>
+
+      {saveError && (
+        <div className="bg-red-50 border border-danger text-danger text-body-sm p-3 rounded-xl font-mono">
+          {saveError}
+        </div>
+      )}
 
       {assignedBuddy && (
         <div className="bg-gradient-to-r from-slate-900 to-[#0B2A3D] text-white p-6 rounded-2xl shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

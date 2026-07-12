@@ -320,11 +320,15 @@ export const getEmployeeChecklist = async (employeeId: string): Promise<Task[]> 
 
 export const saveEmployeeChecklist = async (employeeId: string, tasks: Task[]): Promise<void> => {
   const current = await getEmployeeChecklist(employeeId);
+  const attempted: string[] = [];
+  const failures: string[] = [];
+
   for (const t of tasks) {
     const prev = current.find(pt => pt.id === t.id);
     if (prev) {
       if (t.status === 'completed' && prev.status !== 'completed') {
-        await customFetch(`${API_URL}/checklists/${t.id}/complete`, {
+        attempted.push(t.title || t.id);
+        const res = await customFetch(`${API_URL}/checklists/${t.id}/complete`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -332,8 +336,17 @@ export const saveEmployeeChecklist = async (employeeId: string, tasks: Task[]): 
           },
           ...credentialsOptions
         });
+        // The caller updates local state optimistically before this resolves,
+        // so a failure (e.g. the server's hire-date gate 403ing for a
+        // preboarding account) must be surfaced -- otherwise the UI keeps
+        // showing "completed"/"skipped" for a change that was never
+        // persisted, silently reverting only on the next page reload.
+        if (!res.ok) {
+          failures.push(t.title || t.id);
+        }
       } else if (t.status === 'skipped' && prev.status !== 'skipped') {
-        await customFetch(`${API_URL}/checklists/${t.id}/skip`, {
+        attempted.push(t.title || t.id);
+        const res = await customFetch(`${API_URL}/checklists/${t.id}/skip`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -342,8 +355,18 @@ export const saveEmployeeChecklist = async (employeeId: string, tasks: Task[]): 
           body: JSON.stringify({ skip_reason: t.skipReason || 'Skipped via checklist' }),
           ...credentialsOptions
         });
+        if (!res.ok) {
+          failures.push(t.title || t.id);
+        }
       }
     }
+  }
+
+  if (failures.length > 0) {
+    const succeeded = attempted.length - failures.length;
+    throw new Error(
+      `Saved ${succeeded} of ${attempted.length} task updates -- ${failures.length} failed (${failures.slice(0, 5).join(', ')}${failures.length > 5 ? ', ...' : ''}). Please retry.`
+    );
   }
 };
 
