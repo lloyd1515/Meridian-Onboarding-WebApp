@@ -207,7 +207,11 @@ function mapTaskToFrontend(t: any): Task {
   };
 }
 
-// Helper to convert camelCase keys from frontend to snake_case for server
+// Helper to convert camelCase keys from frontend to snake_case for server.
+// No password field is sent here: POST /employees (save_employee) never
+// accepts a client-supplied password -- a new hire's temp password is
+// generated server-side and returned once by saveEmployee, and the update
+// path doesn't support setting a password at all.
 function mapEmployeeToBackend(emp: Employee): any {
   return {
     id: emp.id,
@@ -220,7 +224,6 @@ function mapEmployeeToBackend(emp: Employee): any {
     buddy_id: emp.buddyId || null,
     hybrid_preference: emp.hybridPreference,
     assigned_desk: emp.assignedDesk || null,
-    hashed_password: ''
   };
 }
 
@@ -245,7 +248,10 @@ export const getEmployees = async (): Promise<Employee[]> => {
   }
 };
 
-export const saveEmployee = async (employee: Employee): Promise<void> => {
+// Returns the one-time temporary password when this call created a brand
+// new employee (undefined for an update to an existing one) -- the backend
+// only ever populates temporary_password on creation.
+export const saveEmployee = async (employee: Employee): Promise<string | undefined> => {
   const backendEmp = mapEmployeeToBackend(employee);
   const res = await customFetch(`${API_URL}/employees`, {
     method: 'POST',
@@ -260,6 +266,8 @@ export const saveEmployee = async (employee: Employee): Promise<void> => {
     const detail = await res.json();
     throw new Error(detail?.detail || 'Failed to save employee');
   }
+  const data = await res.json();
+  return data.temporary_password ?? undefined;
 };
 
 export type EmployeePatch = Partial<Pick<Employee, 'department' | 'buddyId' | 'hybridPreference' | 'assignedDesk'>>;

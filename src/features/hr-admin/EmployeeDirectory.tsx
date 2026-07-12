@@ -38,7 +38,10 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({ readOnly =
     overscan: 10,
   });
 
-  const handleCreateSubmit = async (data: EmployeeSlideOverSubmitData) => {
+  // Returns the newly-created employee's one-time temporary password so the
+  // slide-over can display it; the drawer itself decides when to close (it
+  // stays open to show that password rather than closing immediately).
+  const handleCreateSubmit = async (data: EmployeeSlideOverSubmitData): Promise<string | void> => {
     const newEmp: Employee = {
       id: crypto.randomUUID(),
       name: data.name,
@@ -51,11 +54,10 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({ readOnly =
       hybridPreference: data.hybridPreference,
       assignedDesk: data.assignedDesk || null,
     };
-    await addEmployee(newEmp);
-    setIsOpenForm(false);
+    return addEmployee(newEmp);
   };
 
-  const handleEditSubmit = async (data: EmployeeSlideOverSubmitData) => {
+  const handleEditSubmit = async (data: EmployeeSlideOverSubmitData): Promise<void> => {
     if (!editingEmployee) return;
     await updateEmployee(editingEmployee.id, {
       department: data.department,

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { taskMilestoneBucket, isTaskOverdue, Task, generateBackupExport, validateAndRestoreBackup, saveScheduler, saveEmployeeChecklist, getSlackConfigured, sendSlackMessage } from './db';
+import { taskMilestoneBucket, isTaskOverdue, Task, Employee, generateBackupExport, validateAndRestoreBackup, saveEmployee, saveScheduler, saveEmployeeChecklist, getSlackConfigured, sendSlackMessage } from './db';
 
 const baseTask: Task = {
   id: 't1',
@@ -146,6 +146,60 @@ describe('backup export/restore password round-trip', () => {
     expect(restorePayload.employees[0].hashed_password).toBe(
       '$argon2id$v=19$m=65536,t=3,p=2$supersecurepasswordplaceholder'
     );
+  });
+});
+
+describe('saveEmployee', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const newHire: Employee = {
+    id: 'emp-new-1',
+    name: 'New Hire',
+    email: 'new.hire@meridian.com',
+    slackHandle: '@new.hire',
+    role: 'Software Specialist',
+    department: 'Engineering',
+    hireDate: '2026-08-01',
+    buddyId: null,
+    hybridPreference: 'HYBRID',
+    assignedDesk: null,
+  };
+
+  // Regression test for the critical bug: mapEmployeeToBackend used to always
+  // send hashed_password: '' for a new hire, which the backend then hashed
+  // as the real stored credential -- permanently locking the new hire out.
+  // The fix is that the frontend no longer sends any password field at all;
+  // the server generates and returns a temp password instead.
+  it('does not send a hashed_password field when creating a new employee', async () => {
+    let sentBody: any = null;
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+      sentBody = JSON.parse(init!.body as string);
+      return { ok: true, json: async () => ({ id: 'emp-new-1', temporary_password: 'abc123XYZ789' }) };
+    }));
+
+    await saveEmployee(newHire);
+
+    expect(sentBody).not.toHaveProperty('hashed_password');
+  });
+
+  it('resolves with the server-generated temporary_password on creation', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: 'emp-new-1', temporary_password: 'abc123XYZ789' }),
+    }));
+
+    await expect(saveEmployee(newHire)).resolves.toBe('abc123XYZ789');
+  });
+
+  it('resolves with undefined when the response has no temporary_password (an update)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: 'emp-new-1', temporary_password: null }),
+    }));
+
+    await expect(saveEmployee(newHire)).resolves.toBeUndefined();
   });
 });
 

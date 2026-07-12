@@ -98,6 +98,46 @@ describe('EmployeeDirectory Add New Hire', () => {
     expect(submitted.name).toBe('New Hire Person');
     expect(submitted.email).toBe('new.hire@meridian.com');
   });
+
+  // Regression test for the critical bug fix: a new hire's temp password is
+  // now generated server-side and must be surfaced to the HR admin exactly
+  // once, since there is no other way for the new hire to learn it.
+  it('shows the returned temporary password in a one-time banner after creation', async () => {
+    mockAddEmployee.mockResolvedValue('R4nd0m-Temp-Pw');
+    const user = userEvent.setup();
+    render(<EmployeeDirectory />);
+
+    await user.click(screen.getByRole('button', { name: /add new hire/i }));
+    await user.type(screen.getByLabelText(/full name/i), 'New Hire Person');
+    await user.type(screen.getByLabelText(/email/i), 'new.hire@meridian.com');
+    await user.type(screen.getByLabelText(/slack handle/i), '@new.hire');
+    await user.type(screen.getByLabelText(/corporate role/i), 'Software Specialist');
+    await user.click(screen.getByRole('button', { name: /register hire/i }));
+
+    expect(await screen.findByText('R4nd0m-Temp-Pw')).toBeInTheDocument();
+    expect(screen.getByText(/new hire created/i)).toBeInTheDocument();
+
+    // The drawer must not close on its own while the one-time password is
+    // still showing -- it closes only once the admin dismisses it.
+    expect(screen.getByRole('dialog', { name: /add new hire/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /done/i }));
+    expect(screen.queryByRole('dialog', { name: /add new hire/i })).not.toBeInTheDocument();
+  });
+
+  it('closes the drawer immediately when no temporary password is returned (e.g. re-registration edge case)', async () => {
+    mockAddEmployee.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    render(<EmployeeDirectory />);
+
+    await user.click(screen.getByRole('button', { name: /add new hire/i }));
+    await user.type(screen.getByLabelText(/full name/i), 'New Hire Person');
+    await user.type(screen.getByLabelText(/email/i), 'new.hire@meridian.com');
+    await user.type(screen.getByLabelText(/slack handle/i), '@new.hire');
+    await user.type(screen.getByLabelText(/corporate role/i), 'Software Specialist');
+    await user.click(screen.getByRole('button', { name: /register hire/i }));
+
+    expect(screen.queryByRole('dialog', { name: /add new hire/i })).not.toBeInTheDocument();
+  });
 });
 
 describe('EmployeeDirectory inline edit', () => {

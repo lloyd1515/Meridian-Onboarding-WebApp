@@ -18,7 +18,9 @@ interface EmployeeSlideOverProps {
   employee?: Employee;
   buddiesList: Employee[];
   onClose: () => void;
-  onSubmit: (data: EmployeeSlideOverSubmitData) => Promise<void>;
+  // On create, resolving with a string is the new hire's one-time temporary
+  // password (the drawer then shows it instead of closing immediately).
+  onSubmit: (data: EmployeeSlideOverSubmitData) => Promise<string | void>;
 }
 
 const DEPARTMENTS = ['Engineering', 'Sales', 'Marketing', 'HR', 'Finance'];
@@ -39,6 +41,10 @@ export const EmployeeSlideOver: React.FC<EmployeeSlideOverProps> = ({ mode, empl
   const [hireDate, setHireDate] = useState(employee?.hireDate ?? '2026-07-01');
   const [assignedDesk, setAssignedDesk] = useState(employee?.assignedDesk ?? '');
   const [formError, setFormError] = useState('');
+  // Set only once, right after a successful creation -- shown one time and
+  // never re-derived from a later read of the employee (the backend never
+  // returns it again).
+  const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
 
   const isEdit = mode === 'edit';
   const drawerRef = useRef<HTMLDivElement>(null);
@@ -102,7 +108,12 @@ export const EmployeeSlideOver: React.FC<EmployeeSlideOverProps> = ({ mode, empl
     }
 
     try {
-      await onSubmit({ name, email, slack, roleName, department: dept, buddyId, hybridPreference: pref, hireDate, assignedDesk });
+      const result = await onSubmit({ name, email, slack, roleName, department: dept, buddyId, hybridPreference: pref, hireDate, assignedDesk });
+      if (!isEdit && result) {
+        setTemporaryPassword(result);
+      } else {
+        onClose();
+      }
     } catch (err: any) {
       setFormError(err.message || `Failed to ${isEdit ? 'update' : 'register'} employee`);
     }
@@ -136,6 +147,26 @@ export const EmployeeSlideOver: React.FC<EmployeeSlideOverProps> = ({ mode, empl
             </div>
           )}
 
+          {temporaryPassword ? (
+            <div className="flex flex-col gap-4">
+              <div className="bg-green-50 border border-green-600 text-green-900 text-body-sm p-4 rounded-xl flex flex-col gap-2">
+                <span className="font-bold">New hire created.</span>
+                <span>
+                  Temporary password: <span className="font-mono font-bold select-all">{temporaryPassword}</span>
+                </span>
+                <span className="text-caption text-green-800">
+                  Share this with them securely -- it will not be shown again.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="bg-[#0B2A3D] hover:bg-[#13313F] text-white px-4 py-2.5 rounded-full font-sans font-medium text-body-sm transition-colors shadow-sm select-none"
+              >
+                Done
+              </button>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
             {isEdit ? (
               <div className="border border-border bg-slate-50 rounded-xl p-3 flex flex-col gap-1">
@@ -293,6 +324,7 @@ export const EmployeeSlideOver: React.FC<EmployeeSlideOverProps> = ({ mode, empl
               </button>
             </div>
           </form>
+          )}
         </div>
 
         <div className="border-t border-border md:border-t-0 md:border-l pt-6 md:pt-0 md:pl-6 flex flex-col gap-4 flex-1 items-center justify-start min-w-[280px]">

@@ -7,7 +7,7 @@ interface DbContextType {
   scheduler: Record<string, string[]>;
   isLoading: boolean;
   refreshData: () => Promise<void>;
-  addEmployee: (employee: Employee) => Promise<void>;
+  addEmployee: (employee: Employee) => Promise<string | undefined>;
   updateEmployee: (id: string, patch: EmployeePatch) => Promise<void>;
   updateScheduler: (scheduler: Record<string, string[]>) => Promise<void>;
 }
@@ -42,9 +42,10 @@ export const DbProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     refreshData();
   }, [currentUser?.id]);
 
-  const addEmployee = async (employee: Employee) => {
-    await saveEmployee(employee);
+  const addEmployee = async (employee: Employee): Promise<string | undefined> => {
+    const temporaryPassword = await saveEmployee(employee);
     await refreshData();
+    return temporaryPassword;
   };
 
   const updateEmployee = async (id: string, patch: EmployeePatch) => {
