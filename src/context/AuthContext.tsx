@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Employee, customFetch, getCSRFToken } from '../services/db';
+import { Employee, customFetch, getCSRFToken, mapEmployeeToFrontend } from '../services/db';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8090';
 
@@ -44,18 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await customFetch(`${API_URL}/employees/me`, credentialsOptions);
       if (res.ok) {
         const me = await res.json();
-        const mappedUser: Employee = {
-          id: me.id,
-          name: me.name,
-          email: me.email,
-          slackHandle: me.slack_handle,
-          role: me.role === 'hr_admin' ? 'HR Manager' : (me.role === 'buddy' ? 'Senior Software Engineer' : 'Software Specialist'),
-          department: me.department,
-          hireDate: me.hire_date,
-          buddyId: me.buddy_id,
-          hybridPreference: me.hybrid_preference || 'HYBRID',
-          assignedDesk: me.assigned_desk,
-        };
+        const mappedUser: Employee = mapEmployeeToFrontend(me);
         const mappedRole = me.role === 'hr_admin' ? 'admin' : 'employee';
         setRoleState(mappedRole);
         setCurrentUser(mappedUser);

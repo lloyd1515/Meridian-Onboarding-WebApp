@@ -176,7 +176,7 @@ const SCHEDULER_DATES = [
 ];
 
 // Helper to convert snake_case keys from server to camelCase for frontend
-function mapEmployeeToFrontend(emp: any): Employee {
+export function mapEmployeeToFrontend(emp: any): Employee {
   return {
     id: emp.id,
     name: emp.name,

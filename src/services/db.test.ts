@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { taskMilestoneBucket, isTaskOverdue, Task, Employee, generateBackupExport, validateAndRestoreBackup, saveEmployee, saveScheduler, saveEmployeeChecklist, getSlackConfigured, sendSlackMessage } from './db';
+import { taskMilestoneBucket, isTaskOverdue, Task, Employee, generateBackupExport, validateAndRestoreBackup, saveEmployee, saveScheduler, saveEmployeeChecklist, getSlackConfigured, sendSlackMessage, mapEmployeeToFrontend } from './db';
 
 const baseTask: Task = {
   id: 't1',
@@ -295,6 +295,56 @@ describe('saveEmployeeChecklist', () => {
     await expect(
       saveEmployeeChecklist('emp-1', [{ ...baseTask, id: 't1', status: 'completed' }])
     ).rejects.toThrow(/Saved 0 of 1 task updates -- 1 failed/);
+  });
+});
+
+describe('mapEmployeeToFrontend', () => {
+  // Regression test: AuthContext.syncSession used to hand-roll a duplicate
+  // copy of this mapping; it now reuses this exported helper, so both
+  // callers must map identically.
+  it('maps a snake_case server employee record to the camelCase frontend shape', () => {
+    const serverEmployee = {
+      id: 'emp-1',
+      name: 'Jane Doe',
+      email: 'jane.doe@meridian.com',
+      slack_handle: '@jane.doe',
+      role: 'hr_admin',
+      department: 'Engineering',
+      hire_date: '2022-01-15',
+      buddy_id: 'buddy-1',
+      hybrid_preference: 'REMOTE',
+      assigned_desk: 'D-12',
+    };
+
+    expect(mapEmployeeToFrontend(serverEmployee)).toEqual({
+      id: 'emp-1',
+      name: 'Jane Doe',
+      email: 'jane.doe@meridian.com',
+      slackHandle: '@jane.doe',
+      role: 'HR Manager',
+      department: 'Engineering',
+      hireDate: '2022-01-15',
+      buddyId: 'buddy-1',
+      hybridPreference: 'REMOTE',
+      assignedDesk: 'D-12',
+    });
+  });
+
+  it('defaults hybridPreference to HYBRID when the server omits it', () => {
+    const serverEmployee = {
+      id: 'emp-2',
+      name: 'New Hire',
+      email: 'new.hire@meridian.com',
+      slack_handle: null,
+      role: 'employee',
+      department: 'Engineering',
+      hire_date: '2026-08-01',
+      buddy_id: null,
+      hybrid_preference: null,
+      assigned_desk: null,
+    };
+
+    expect(mapEmployeeToFrontend(serverEmployee).hybridPreference).toBe('HYBRID');
   });
 });
 
