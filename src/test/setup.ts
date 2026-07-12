@@ -30,3 +30,11 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
   }
   globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
 }
+
+// jsdom doesn't implement scrollIntoView at all -- OnboardingChecklist calls
+// it (via a setTimeout) to scroll the active task into view whenever there's
+// more than one non-completed task, which throws an unhandled TypeError in
+// any test rendering that scenario.
+if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {};
+}

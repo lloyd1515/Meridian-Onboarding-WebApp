@@ -6,6 +6,30 @@ import { useSlackSend, sanitizeSlackText } from '../../hooks/useSlackSend';
 
 const SLACK_INTRO_KEY = 'buddy-intro';
 
+// Bespoke onboarding UI keyed by task id: an inline skip form + resource link
+// for the laptop-setup task, a video-meeting link + a modal justification
+// flow for the security-training task, and a slide-over audit flow for the
+// security-software install task.
+//
+// There is no task_type/category/slug field on the Task model to key this on
+// instead (see server/app/models.py's ChecklistTask -- its id is always a
+// DB-generated UUID); these literal ids only ever match the seeded demo
+// fixture data, so in the real running app this branching is effectively
+// unreachable. Adding a real semantic identifier to the backend model is a
+// bigger, separate follow-up -- this just centralizes the previously
+// scattered magic strings into one config object without changing behavior.
+const CUSTOM_TASK_UI: Record<string, {
+  hasInlineSkipForm?: boolean;
+  hasResourceLink?: boolean;
+  hasVideoMeetingLink?: boolean;
+  hasJustificationModal?: boolean;
+  hasSkipAuditSlideOver?: boolean;
+}> = {
+  'task-2': { hasInlineSkipForm: true, hasResourceLink: true },
+  'task-3': { hasVideoMeetingLink: true, hasJustificationModal: true },
+  'task-4': { hasSkipAuditSlideOver: true },
+};
+
 export const OnboardingChecklist: React.FC = () => {
   const { currentUser, simulationDate } = useAuth();
   const { employees } = useDb();
@@ -415,7 +439,7 @@ export const OnboardingChecklist: React.FC = () => {
                       <p className="text-body-sm text-text-primary leading-relaxed font-sans">{task.description}</p>
                     </div>
 
-                    {task.id === 'task-2' && activeSkipTaskId === 'task-2' && (
+                    {CUSTOM_TASK_UI[task.id]?.hasInlineSkipForm && activeSkipTaskId === task.id && (
                       <div className="flex flex-col gap-2 p-3 bg-background border border-border rounded-xl" onClick={(e) => e.stopPropagation()}>
                         <span className="font-mono text-[10px] uppercase tracking-[2px] text-text-muted">Inline Skip Action:</span>
                         <input
@@ -446,7 +470,7 @@ export const OnboardingChecklist: React.FC = () => {
                       </div>
                     )}
 
-                    {task.id === 'task-2' && (
+                    {CUSTOM_TASK_UI[task.id]?.hasResourceLink && (
                       <div>
                         <span className="font-mono text-[10px] leading-none tracking-[2px] uppercase block mb-1 text-text-muted">Resource</span>
                         <a 
@@ -460,7 +484,7 @@ export const OnboardingChecklist: React.FC = () => {
                       </div>
                     )}
 
-                    {task.id === 'task-3' && (
+                    {CUSTOM_TASK_UI[task.id]?.hasVideoMeetingLink && (
                       <div className="flex flex-col gap-2 p-3 bg-[#F8FAFC] border border-border rounded-xl">
                         <span className="font-mono text-[10px] leading-none tracking-[2px] uppercase block text-text-muted">Video Meeting Link</span>
                         <div className="flex items-center justify-between gap-2">
@@ -505,10 +529,10 @@ export const OnboardingChecklist: React.FC = () => {
                           </span>
                         </button>
 
-                        {(isPending || task.id === 'task-2' || task.id === 'task-3' || task.id === 'task-4') && (
+                        {(isPending || !!CUSTOM_TASK_UI[task.id]) && (
                           <>
                             {activeSkipTaskId === task.id ? (
-                              task.id !== 'task-2' && task.id !== 'task-3' && task.id !== 'task-4' && (
+                              !CUSTOM_TASK_UI[task.id] && (
                                 <div className="flex items-center gap-2 bg-background p-1.5 rounded-full border border-border w-full max-w-md">
                                   <input
                                     type="text"
@@ -559,8 +583,8 @@ export const OnboardingChecklist: React.FC = () => {
       </div>
     </div>
 
-      {activeSkipTaskId === 'task-3' && (
-        <div 
+      {activeSkipTaskId !== null && CUSTOM_TASK_UI[activeSkipTaskId]?.hasJustificationModal && (
+        <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
           onClick={() => {
             setActiveSkipTaskId(null);
@@ -607,7 +631,7 @@ export const OnboardingChecklist: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() => handleConfirmSkip('task-3', skipReason)}
+                onClick={() => handleConfirmSkip(activeSkipTaskId, skipReason)}
                 className="px-4 py-2 bg-[#0B2A3D] hover:bg-[#13313F] text-white rounded-full font-medium text-xs transition-colors"
               >
                 Submit Justification
@@ -617,8 +641,8 @@ export const OnboardingChecklist: React.FC = () => {
         </div>
       )}
 
-      {activeSkipTaskId === 'task-4' && (
-        <div 
+      {activeSkipTaskId !== null && CUSTOM_TASK_UI[activeSkipTaskId]?.hasSkipAuditSlideOver && (
+        <div
           className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm"
           onClick={() => {
             setActiveSkipTaskId(null);
@@ -667,7 +691,7 @@ export const OnboardingChecklist: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() => handleConfirmSkip('task-4', skipReason)}
+                onClick={() => handleConfirmSkip(activeSkipTaskId, skipReason)}
                 className="flex-1 px-4 py-2.5 bg-danger text-white rounded-full font-medium text-xs transition-colors hover:opacity-90"
               >
                 Log Bypass & Flag HR
