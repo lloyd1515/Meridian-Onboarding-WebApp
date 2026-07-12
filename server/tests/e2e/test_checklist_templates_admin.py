@@ -159,3 +159,44 @@ async def test_update_checklist_template_reflects_in_freshly_seeded_employee_che
     assert "Configure work laptop (updated)" in titles
     assert titles["Configure work laptop (updated)"]["milestone_offset_days"] == 45
     assert "Configure work laptop" not in titles
+
+
+@pytest.mark.asyncio
+async def test_checklist_template_crud_supports_blocked_by_template_id(client, db_session, authenticated_admin):
+    """The blocked_by_template_id field must be settable through the same
+    Create/Update schemas as every other HR-editable template field -- that's
+    what makes the "blocked by" relationship actually HR-editable end-to-end,
+    not just persisted."""
+    admin, csrf_token = authenticated_admin
+    headers = {"X-CSRF-Token": csrf_token}
+
+    blocker_resp = await client.post(
+        "/checklist-templates",
+        json={"title": "Blocker task", "milestone_offset_days": 30, "sort_order": 200},
+        headers=headers,
+    )
+    assert blocker_resp.status_code == 201
+    blocker_id = blocker_resp.json()["id"]
+
+    dependent_resp = await client.post(
+        "/checklist-templates",
+        json={
+            "title": "Dependent task",
+            "milestone_offset_days": 30,
+            "sort_order": 201,
+            "blocked_by_template_id": blocker_id,
+        },
+        headers=headers,
+    )
+    assert dependent_resp.status_code == 201
+    dependent = dependent_resp.json()
+    assert dependent["blocked_by_template_id"] == blocker_id
+
+    # Clear it back out via update.
+    update_resp = await client.put(
+        f"/checklist-templates/{dependent['id']}",
+        json={"blocked_by_template_id": None},
+        headers=headers,
+    )
+    assert update_resp.status_code == 200
+    assert update_resp.json()["blocked_by_template_id"] is None

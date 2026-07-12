@@ -171,6 +171,7 @@ class ChecklistTemplateCreate(BaseModel):
     milestone_offset_days: int
     dependency_indices: Optional[list[int]] = None
     sort_order: int = 0
+    blocked_by_template_id: Optional[UUID] = None
 
 class ChecklistTemplateUpdate(BaseModel):
     department: Optional[str] = None
@@ -180,6 +181,7 @@ class ChecklistTemplateUpdate(BaseModel):
     milestone_offset_days: Optional[int] = None
     dependency_indices: Optional[list[int]] = None
     sort_order: Optional[int] = None
+    blocked_by_template_id: Optional[UUID] = None
 
 class ChecklistTemplateOut(BaseModel):
     id: UUID
@@ -190,6 +192,7 @@ class ChecklistTemplateOut(BaseModel):
     milestone_offset_days: int
     dependency_indices: Optional[list[int]] = None
     sort_order: int
+    blocked_by_template_id: Optional[UUID] = None
 
     class Config:
         from_attributes = True

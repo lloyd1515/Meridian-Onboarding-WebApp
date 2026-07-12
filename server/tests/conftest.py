@@ -61,8 +61,9 @@ _DEPARTMENT_CAPSTONE = {
 
 
 async def _seed_checklist_templates(session: AsyncSession) -> None:
+    core_templates = []
     for idx, t in enumerate(_CORE_TASKS):
-        session.add(ChecklistTemplate(
+        template = ChecklistTemplate(
             department=None,
             title=t["title"],
             description=t["description"],
@@ -70,7 +71,9 @@ async def _seed_checklist_templates(session: AsyncSession) -> None:
             milestone_offset_days=t["milestone_offset_days"],
             dependency_indices=t["deps"],
             sort_order=idx,
-        ))
+        )
+        session.add(template)
+        core_templates.append(template)
     for department, capstone_tasks in _DEPARTMENT_CAPSTONE.items():
         for offset, t in enumerate(capstone_tasks):
             session.add(ChecklistTemplate(
@@ -82,6 +85,14 @@ async def _seed_checklist_templates(session: AsyncSession) -> None:
                 dependency_indices=t["deps"],
                 sort_order=len(_CORE_TASKS) + offset,
             ))
+    await session.flush()
+
+    # Mirrors the data backfill in alembic/versions/c3e4f5a6b7d8_add_checklist_template_blocked_by.py:
+    # "Install corporate security software" (core index 3) is blocked by
+    # "Configure work laptop" (core index 1). Tests recreate the schema from
+    # scratch instead of running migrations, so this needs its own seeding.
+    core_templates[3].blocked_by_template_id = core_templates[1].id
+
     await session.commit()
 
 @pytest.fixture(scope="session")

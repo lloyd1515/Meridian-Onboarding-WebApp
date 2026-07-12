@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import TypedDict
+from typing import Optional, TypedDict
 from uuid import UUID
 
 from sqlalchemy import select
@@ -9,10 +9,12 @@ from app.models import ChecklistTask, ChecklistTemplate, Employee
 
 
 class TaskTemplate(TypedDict):
+    id: UUID
     title: str
     description: str
     status: str
     deps: list[int]
+    blocked_by_template_id: Optional[UUID]
     milestone_offset_days: int
 
 
@@ -50,10 +52,12 @@ async def default_tasks_for(db: AsyncSession, department: str) -> list[TaskTempl
 
     def _to_task_template(row: ChecklistTemplate) -> TaskTemplate:
         return {
+            "id": row.id,
             "title": row.title,
             "description": row.description,
             "status": row.default_status,
             "deps": row.dependency_indices or [],
+            "blocked_by_template_id": row.blocked_by_template_id,
             "milestone_offset_days": row.milestone_offset_days,
         }
 
@@ -84,15 +88,28 @@ async def seed_checklist_tasks(db: AsyncSession, employee_id: UUID, department: 
             due_date=due_date,
         )
         db.add(task)
-        await db.flush()
         created_tasks.append(task)
+
+    # Single round-trip to populate every task's id, instead of one flush
+    # per task -- needed below to resolve dependency indices and the
+    # blocked-by template reference into real task ids.
+    await db.flush()
+
+    # Template id -> the ChecklistTask just created for it, so blocked_by
+    # can be resolved by stable template identity rather than a positional
+    # index into this list (which shifts whenever HR reorders/edits
+    # templates via the checklist-templates CRUD routes).
+    task_by_template_id = {td["id"]: task for td, task in zip(tasks_data, created_tasks)}
 
     for idx, td in enumerate(tasks_data):
         dep_indices = td["deps"]
         if dep_indices:
             dep_uuids = [str(created_tasks[d_idx].id) for d_idx in dep_indices]
             created_tasks[idx].dependencies = dep_uuids
-            if idx == 3:  # "Install corporate security software" blocked by "Configure work laptop"
-                created_tasks[idx].blocked_by = created_tasks[1].id
+
+        blocked_by_template_id = td["blocked_by_template_id"]
+        blocker_task = task_by_template_id.get(blocked_by_template_id)
+        if blocker_task:
+            created_tasks[idx].blocked_by = blocker_task.id
 
     return created_tasks

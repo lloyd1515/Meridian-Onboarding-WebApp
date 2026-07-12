@@ -70,6 +70,11 @@ class ChecklistTemplate(Base):
     # dicts: indices into the ordered template list for this department.
     dependency_indices = Column(JSON, nullable=True)
     sort_order = Column(Integer, nullable=False, default=0)
+    # Explicit, persisted "blocked by" relationship between templates --
+    # unlike dependency_indices (positional indices into the assembled
+    # per-department list), this survives HR reordering/editing templates
+    # via the checklist-templates CRUD routes.
+    blocked_by_template_id = Column(UUID(as_uuid=True), ForeignKey("checklist_templates.id", ondelete="SET NULL"), nullable=True)
 
     __table_args__ = (
         Index("idx_checklist_templates_department", "department"),
