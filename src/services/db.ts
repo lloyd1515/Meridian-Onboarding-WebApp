@@ -16,6 +16,11 @@ import {
 } from './db/shared';
 
 export * from './db/shared';
+export * from './db/audit';
+export * from './db/questions';
+export * from './db/notifications';
+export * from './db/templates';
+export * from './db/ics';
 
 export const BackupSchema = z.object({
   version: z.string(),
@@ -24,49 +29,7 @@ export const BackupSchema = z.object({
   scheduler: z.record(z.string(), z.array(z.string())),
 });
 
-export interface AuditLogEntry {
-  id: string;
-  actorEmployeeId: string | null;
-  actorName: string | null;
-  action: string;
-  detail: Record<string, unknown> | null;
-  createdAt: string;
-}
-
-export interface Question {
-  id: string;
-  employeeId: string;
-  employeeName: string | null;
-  subject: string;
-  body: string;
-  status: 'open' | 'answered';
-  answer: string | null;
-  createdAt: string;
-  answeredAt: string | null;
-}
-
 export type BackupData = z.infer<typeof BackupSchema>;
-
-export interface ChecklistTemplate {
-  id: string;
-  department: string | null;
-  title: string;
-  description: string | null;
-  defaultStatus: string;
-  milestoneOffsetDays: number;
-  dependencyIndices: number[] | null;
-  sortOrder: number;
-}
-
-export interface ChecklistTemplateInput {
-  department: string | null;
-  title: string;
-  description: string | null;
-  defaultStatus: string;
-  milestoneOffsetDays: number;
-  dependencyIndices: number[] | null;
-  sortOrder: number;
-}
 
 export const getEmployees = async (): Promise<Employee[]> => {
   try {
@@ -335,28 +298,6 @@ export const saveScheduler = async (scheduler: Record<string, string[]>): Promis
   }
 };
 
-// Downloads the current user's first-week agenda as a real .ics file.
-// A plain <a href> to this endpoint would 401 -- cookie auth here requires
-// `credentials: 'include'`, which a bare anchor navigation never sends -- so
-// this fetches the file as a blob and triggers the save via a temporary,
-// programmatically-clicked link instead.
-export const downloadAgendaIcs = async (): Promise<void> => {
-  const res = await customFetch(`${API_URL}/employees/me/agenda.ics`, credentialsOptions);
-  if (!res.ok) {
-    throw new Error('Failed to download agenda calendar file.');
-  }
-
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'agenda.ics';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-};
-
 export interface ValidationResult {
   success: boolean;
   errors: string[];
@@ -455,205 +396,6 @@ export const validateAndRestoreBackup = async (jsonString: string, confirmationP
   }
 
   return result;
-};
-
-function mapAuditLogEntryToFrontend(a: any): AuditLogEntry {
-  return {
-    id: a.id,
-    actorEmployeeId: a.actor_employee_id,
-    actorName: a.actor_name,
-    action: a.action,
-    detail: a.detail,
-    createdAt: a.created_at,
-  };
-}
-
-export const getAuditLog = async (): Promise<AuditLogEntry[]> => {
-  try {
-    const res = await customFetch(`${API_URL}/backup/audit-log`, credentialsOptions);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.map(mapAuditLogEntryToFrontend);
-  } catch (e) {
-    console.error('Error fetching audit log:', e);
-    return [];
-  }
-};
-
-function mapQuestionToFrontend(q: any): Question {
-  return {
-    id: q.id,
-    employeeId: q.employee_id,
-    employeeName: q.employee_name,
-    subject: q.subject,
-    body: q.body,
-    status: q.status,
-    answer: q.answer,
-    createdAt: q.created_at,
-    answeredAt: q.answered_at,
-  };
-}
-
-export const getQuestions = async (): Promise<Question[]> => {
-  try {
-    const res = await customFetch(`${API_URL}/questions`, credentialsOptions);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.map(mapQuestionToFrontend);
-  } catch (e) {
-    console.error('Error fetching questions:', e);
-    return [];
-  }
-};
-
-export const askQuestion = async (subject: string, body: string): Promise<Question> => {
-  const res = await customFetch(`${API_URL}/questions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRF-Token': getCSRFToken()
-    },
-    body: JSON.stringify({ subject, body }),
-    ...credentialsOptions
-  });
-  if (!res.ok) {
-    const detail = await res.json();
-    throw new Error(detail?.detail || 'Failed to submit question');
-  }
-  return mapQuestionToFrontend(await res.json());
-};
-
-export const answerQuestion = async (questionId: string, answer: string): Promise<Question> => {
-  const res = await customFetch(`${API_URL}/questions/${questionId}/answer`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRF-Token': getCSRFToken()
-    },
-    body: JSON.stringify({ answer }),
-    ...credentialsOptions
-  });
-  if (!res.ok) {
-    const detail = await res.json();
-    throw new Error(detail?.detail || 'Failed to submit answer');
-  }
-  return mapQuestionToFrontend(await res.json());
-};
-
-export const getSlackConfigured = async (): Promise<boolean> => {
-  try {
-    const res = await customFetch(`${API_URL}/notifications/slack/status`, credentialsOptions);
-    if (!res.ok) return false;
-    const data = await res.json();
-    return Boolean(data.configured);
-  } catch (e) {
-    console.error('Error checking Slack configuration:', e);
-    return false;
-  }
-};
-
-export const sendSlackMessage = async (message: string): Promise<boolean> => {
-  const res = await customFetch(`${API_URL}/notifications/slack`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRF-Token': getCSRFToken()
-    },
-    body: JSON.stringify({ message }),
-    ...credentialsOptions
-  });
-  if (!res.ok) return false;
-  const data = await res.json();
-  return Boolean(data.sent);
-};
-
-function mapChecklistTemplateToFrontend(t: any): ChecklistTemplate {
-  return {
-    id: t.id,
-    department: t.department,
-    title: t.title,
-    description: t.description,
-    defaultStatus: t.default_status,
-    milestoneOffsetDays: t.milestone_offset_days,
-    dependencyIndices: t.dependency_indices,
-    sortOrder: t.sort_order,
-  };
-}
-
-function mapChecklistTemplateToBackend(t: ChecklistTemplateInput): any {
-  return {
-    department: t.department,
-    title: t.title,
-    description: t.description,
-    default_status: t.defaultStatus,
-    milestone_offset_days: t.milestoneOffsetDays,
-    dependency_indices: t.dependencyIndices,
-    sort_order: t.sortOrder,
-  };
-}
-
-export const getChecklistTemplates = async (): Promise<ChecklistTemplate[]> => {
-  const res = await customFetch(`${API_URL}/checklist-templates`, credentialsOptions);
-  if (!res.ok) throw new Error('Failed to fetch checklist templates');
-  const data = await res.json();
-  return data.map(mapChecklistTemplateToFrontend);
-};
-
-export const createChecklistTemplate = async (template: ChecklistTemplateInput): Promise<ChecklistTemplate> => {
-  const res = await customFetch(`${API_URL}/checklist-templates`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRF-Token': getCSRFToken()
-    },
-    body: JSON.stringify(mapChecklistTemplateToBackend(template)),
-    ...credentialsOptions
-  });
-  if (!res.ok) {
-    const detail = await res.json();
-    throw new Error(detail?.detail || 'Failed to create checklist template');
-  }
-  return mapChecklistTemplateToFrontend(await res.json());
-};
-
-export const updateChecklistTemplate = async (id: string, template: Partial<ChecklistTemplateInput>): Promise<ChecklistTemplate> => {
-  const payload: Record<string, unknown> = {};
-  if (template.department !== undefined) payload.department = template.department;
-  if (template.title !== undefined) payload.title = template.title;
-  if (template.description !== undefined) payload.description = template.description;
-  if (template.defaultStatus !== undefined) payload.default_status = template.defaultStatus;
-  if (template.milestoneOffsetDays !== undefined) payload.milestone_offset_days = template.milestoneOffsetDays;
-  if (template.dependencyIndices !== undefined) payload.dependency_indices = template.dependencyIndices;
-  if (template.sortOrder !== undefined) payload.sort_order = template.sortOrder;
-
-  const res = await customFetch(`${API_URL}/checklist-templates/${id}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRF-Token': getCSRFToken()
-    },
-    body: JSON.stringify(payload),
-    ...credentialsOptions
-  });
-  if (!res.ok) {
-    const detail = await res.json();
-    throw new Error(detail?.detail || 'Failed to update checklist template');
-  }
-  return mapChecklistTemplateToFrontend(await res.json());
-};
-
-export const deleteChecklistTemplate = async (id: string): Promise<void> => {
-  const res = await customFetch(`${API_URL}/checklist-templates/${id}`, {
-    method: 'DELETE',
-    headers: {
-      'X-CSRF-Token': getCSRFToken()
-    },
-    ...credentialsOptions
-  });
-  if (!res.ok) {
-    const detail = await res.json();
-    throw new Error(detail?.detail || 'Failed to delete checklist template');
-  }
 };
 
 export const generateBackupExport = async (): Promise<string> => {
