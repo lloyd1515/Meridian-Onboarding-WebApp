@@ -7,6 +7,7 @@ import {
   getChecklistTemplates,
   updateChecklistTemplate,
 } from '../../services/db';
+import { SlideOver } from '../../components/SlideOver';
 
 const DEPARTMENTS = ['Engineering', 'Sales', 'Marketing', 'Finance', 'HR'];
 
@@ -212,14 +213,18 @@ export const ChecklistTemplateEditor: React.FC = () => {
       )}
 
       {isOpenForm && (
-        <div className="fixed inset-0 bg-[#000000]/40 z-50 flex justify-end">
-          <div className="bg-white border-l border-border w-full max-w-[480px] h-full p-6 flex flex-col gap-4 overflow-y-auto rounded-l-2xl shadow-2xl">
+        <SlideOver
+          onClose={() => setIsOpenForm(false)}
+          ariaLabel={editingId ? 'Edit Template' : 'Add Template'}
+          className="w-full max-w-[480px] p-6 flex flex-col gap-4 overflow-y-auto rounded-l-2xl"
+        >
             <div className="flex justify-between items-center border-b border-border pb-2">
               <h3 className="text-h2 font-bold text-[#0B2A3D]">
                 {editingId ? 'Edit Template' : 'Add Template'}
               </h3>
               <button
                 onClick={() => setIsOpenForm(false)}
+                aria-label="Close drawer"
                 className="material-symbols-outlined text-[#0B2A3D] cursor-pointer hover:text-red-500 transition-colors"
               >
                 close
@@ -305,8 +310,7 @@ export const ChecklistTemplateEditor: React.FC = () => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </SlideOver>
       )}
     </div>
   );
