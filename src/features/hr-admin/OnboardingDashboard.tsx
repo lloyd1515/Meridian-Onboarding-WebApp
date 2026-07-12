@@ -3,6 +3,76 @@ import { useDb } from '../../context/DbContext';
 import { useAuth } from '../../context/AuthContext';
 import { getChecklists, isNewHire, taskMilestoneBucket, isTaskOverdue, Task, Employee } from '../../services/db';
 
+const getStatusBadge = (status: Task['status']) => {
+  switch (status) {
+    case 'completed':
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold font-mono uppercase bg-success/10 text-success border border-success/20">
+          Completed
+        </span>
+      );
+    case 'in_progress':
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold font-mono uppercase bg-sky-50 text-[#0E8A9A] border border-[#0E8A9A]/20">
+          In Progress
+        </span>
+      );
+    case 'skipped':
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold font-mono uppercase bg-amber-50 text-warning border border-warning/20">
+          Skipped
+        </span>
+      );
+    case 'blocked':
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold font-mono uppercase bg-red-50 text-danger border border-danger/20">
+          Blocked
+        </span>
+      );
+    default:
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold font-mono uppercase bg-slate-100 text-text-muted border border-border">
+          Pending
+        </span>
+      );
+  }
+};
+
+// Renders one milestone (30/60/90-day) column of an employee's detailed
+// checklist breakdown -- previously triplicated near-identically per interval.
+const MilestoneColumn: React.FC<{ days: 30 | 60 | 90; tasks: Task[]; pct: number }> = ({ days, tasks, pct }) => (
+  <div className="flex flex-col gap-3">
+    <div className="flex justify-between items-center bg-[#0B2A3D]/5 px-3 py-2 rounded-xl border border-[#0B2A3D]/10">
+      <span className="font-mono text-caption font-bold text-[#0B2A3D]">{days}-Day Milestones</span>
+      <span className="text-[10px] font-mono font-bold text-text-muted bg-white px-2 py-0.5 rounded-full border border-border">
+        {pct.toFixed(0)}%
+      </span>
+    </div>
+    <div className="flex flex-col gap-2.5">
+      {tasks.length > 0 ? (
+        tasks.map(task => (
+          <div key={task.id} className="bg-white border border-border p-3.5 rounded-xl flex flex-col gap-2 shadow-sm">
+            <div className="flex justify-between items-start gap-2">
+              <span className="text-body-sm font-bold text-[#0B2A3D]">{task.title}</span>
+              {getStatusBadge(task.status)}
+            </div>
+            <p className="text-caption text-text-muted leading-relaxed">
+              {task.description}
+            </p>
+            {task.status === 'skipped' && task.skipReason && (
+              <div className="bg-amber-50/50 border border-warning/10 p-2.5 rounded-lg text-[11px] text-warning leading-relaxed font-mono">
+                <strong>Reason:</strong> {task.skipReason}
+              </div>
+            )}
+          </div>
+        ))
+      ) : (
+        <span className="text-caption text-text-muted italic py-2 text-center">No {days}-day tasks.</span>
+      )}
+    </div>
+  </div>
+);
+
 export const OnboardingDashboard: React.FC = () => {
   const { employees } = useDb();
   const { simulationDate } = useAuth();
@@ -108,41 +178,6 @@ export const OnboardingDashboard: React.FC = () => {
 
   const toggleExpand = (empId: string) => {
     setExpandedEmployeeId(expandedEmployeeId === empId ? null : empId);
-  };
-
-  const getStatusBadge = (status: Task['status']) => {
-    switch (status) {
-      case 'completed':
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold font-mono uppercase bg-success/10 text-success border border-success/20">
-            Completed
-          </span>
-        );
-      case 'in_progress':
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold font-mono uppercase bg-sky-50 text-[#0E8A9A] border border-[#0E8A9A]/20">
-            In Progress
-          </span>
-        );
-      case 'skipped':
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold font-mono uppercase bg-amber-50 text-warning border border-warning/20">
-            Skipped
-          </span>
-        );
-      case 'blocked':
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold font-mono uppercase bg-red-50 text-danger border border-danger/20">
-            Blocked
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold font-mono uppercase bg-slate-100 text-text-muted border border-border">
-            Pending
-          </span>
-        );
-    }
   };
 
   if (loading) {
@@ -329,98 +364,9 @@ export const OnboardingDashboard: React.FC = () => {
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="flex flex-col gap-3">
-                              <div className="flex justify-between items-center bg-[#0B2A3D]/5 px-3 py-2 rounded-xl border border-[#0B2A3D]/10">
-                                <span className="font-mono text-caption font-bold text-[#0B2A3D]">30-Day Milestones</span>
-                                <span className="text-[10px] font-mono font-bold text-text-muted bg-white px-2 py-0.5 rounded-full border border-border">
-                                  {pct30.toFixed(0)}%
-                                </span>
-                              </div>
-                              <div className="flex flex-col gap-2.5">
-                                {tasks30.length > 0 ? (
-                                  tasks30.map(task => (
-                                    <div key={task.id} className="bg-white border border-border p-3.5 rounded-xl flex flex-col gap-2 shadow-sm">
-                                      <div className="flex justify-between items-start gap-2">
-                                        <span className="text-body-sm font-bold text-[#0B2A3D]">{task.title}</span>
-                                        {getStatusBadge(task.status)}
-                                      </div>
-                                      <p className="text-caption text-text-muted leading-relaxed">
-                                        {task.description}
-                                      </p>
-                                      {task.status === 'skipped' && task.skipReason && (
-                                        <div className="bg-amber-50/50 border border-warning/10 p-2.5 rounded-lg text-[11px] text-warning leading-relaxed font-mono">
-                                          <strong>Reason:</strong> {task.skipReason}
-                                        </div>
-                                      )}
-                                    </div>
-                                  ))
-                                ) : (
-                                  <span className="text-caption text-text-muted italic py-2 text-center">No 30-day tasks.</span>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="flex flex-col gap-3">
-                              <div className="flex justify-between items-center bg-[#0B2A3D]/5 px-3 py-2 rounded-xl border border-[#0B2A3D]/10">
-                                <span className="font-mono text-caption font-bold text-[#0B2A3D]">60-Day Milestones</span>
-                                <span className="text-[10px] font-mono font-bold text-text-muted bg-white px-2 py-0.5 rounded-full border border-border">
-                                  {pct60.toFixed(0)}%
-                                </span>
-                              </div>
-                              <div className="flex flex-col gap-2.5">
-                                {tasks60.length > 0 ? (
-                                  tasks60.map(task => (
-                                    <div key={task.id} className="bg-white border border-border p-3.5 rounded-xl flex flex-col gap-2 shadow-sm">
-                                      <div className="flex justify-between items-start gap-2">
-                                        <span className="text-body-sm font-bold text-[#0B2A3D]">{task.title}</span>
-                                        {getStatusBadge(task.status)}
-                                      </div>
-                                      <p className="text-caption text-text-muted leading-relaxed">
-                                        {task.description}
-                                      </p>
-                                      {task.status === 'skipped' && task.skipReason && (
-                                        <div className="bg-amber-50/50 border border-warning/10 p-2.5 rounded-lg text-[11px] text-warning leading-relaxed font-mono">
-                                          <strong>Reason:</strong> {task.skipReason}
-                                        </div>
-                                      )}
-                                    </div>
-                                  ))
-                                ) : (
-                                  <span className="text-caption text-text-muted italic py-2 text-center">No 60-day tasks.</span>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="flex flex-col gap-3">
-                              <div className="flex justify-between items-center bg-[#0B2A3D]/5 px-3 py-2 rounded-xl border border-[#0B2A3D]/10">
-                                <span className="font-mono text-caption font-bold text-[#0B2A3D]">90-Day Milestones</span>
-                                <span className="text-[10px] font-mono font-bold text-text-muted bg-white px-2 py-0.5 rounded-full border border-border">
-                                  {pct90.toFixed(0)}%
-                                </span>
-                              </div>
-                              <div className="flex flex-col gap-2.5">
-                                {tasks90.length > 0 ? (
-                                  tasks90.map(task => (
-                                    <div key={task.id} className="bg-white border border-border p-3.5 rounded-xl flex flex-col gap-2 shadow-sm">
-                                      <div className="flex justify-between items-start gap-2">
-                                        <span className="text-body-sm font-bold text-[#0B2A3D]">{task.title}</span>
-                                        {getStatusBadge(task.status)}
-                                      </div>
-                                      <p className="text-caption text-text-muted leading-relaxed">
-                                        {task.description}
-                                      </p>
-                                      {task.status === 'skipped' && task.skipReason && (
-                                        <div className="bg-amber-50/50 border border-warning/10 p-2.5 rounded-lg text-[11px] text-warning leading-relaxed font-mono">
-                                          <strong>Reason:</strong> {task.skipReason}
-                                        </div>
-                                      )}
-                                    </div>
-                                  ))
-                                ) : (
-                                  <span className="text-caption text-text-muted italic py-2 text-center">No 90-day tasks.</span>
-                                )}
-                              </div>
-                            </div>
+                            <MilestoneColumn days={30} tasks={tasks30} pct={pct30} />
+                            <MilestoneColumn days={60} tasks={tasks60} pct={pct60} />
+                            <MilestoneColumn days={90} tasks={tasks90} pct={pct90} />
                           </div>
                         </div>
                       )}
