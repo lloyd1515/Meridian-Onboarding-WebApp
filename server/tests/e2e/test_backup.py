@@ -2,6 +2,7 @@ import pytest
 import datetime
 from app.core.security import hash_password
 from app.models import Employee, ChecklistTask, AuditLog
+from app.routes import backup as backup_routes
 from sqlalchemy import select
 
 @pytest.fixture
@@ -411,6 +412,145 @@ async def test_backup_restore_with_correct_phrase_creates_audit_log_entry(
         "tasks_restored": body["tasks_restored"],
         "schedules_restored": body["schedules_restored"],
     }
+
+
+@pytest.mark.asyncio
+async def test_backup_restore_rejects_blocked_by_cycle_with_clean_400(
+    client, db_session, authenticated_admin
+):
+    """Mirrors test_backup_restore_rejects_mutual_buddy_cycle but for the
+    checklist_tasks.blocked_by topo-sort helper: a genuine cycle must come
+    back as a clean 400 (our own ValueError message), not a raw stack trace
+    or an unhandled 500."""
+    admin, csrf_token = authenticated_admin
+    headers = {"X-CSRF-Token": csrf_token}
+
+    export_resp = await client.get("/backup/export")
+    backup_data = export_resp.json()
+
+    import uuid
+
+    task_a_id = str(uuid.uuid4())
+    task_b_id = str(uuid.uuid4())
+
+    backup_data["checklist_tasks"] = [
+        {
+            "id": task_a_id,
+            "employee_id": str(admin.id),
+            "title": "Task A",
+            "description": None,
+            "status": "blocked",
+            "skip_reason": None,
+            "blocked_by": task_b_id,
+            "dependencies": None,
+            "due_date": None,
+            "completed_at": None,
+            "milestone_offset_days": None,
+        },
+        {
+            "id": task_b_id,
+            "employee_id": str(admin.id),
+            "title": "Task B",
+            "description": None,
+            "status": "blocked",
+            "skip_reason": None,
+            "blocked_by": task_a_id,
+            "dependencies": None,
+            "due_date": None,
+            "completed_at": None,
+            "milestone_offset_days": None,
+        },
+    ]
+    backup_data["schedule_entries"] = []
+    backup_data["confirmation_phrase"] = "RESTORE"
+
+    before_count = await _existing_audit_log_count(db_session)
+    resp = await client.post("/backup/restore", json=backup_data, headers=headers)
+
+    assert resp.status_code == 400
+    detail = resp.json()["detail"]
+    assert "cycle" in detail.lower()
+    # A clean, deliberately-raised message, not a raw traceback/exception repr.
+    assert "Traceback" not in detail
+    assert await _existing_audit_log_count(db_session) == before_count
+
+
+@pytest.mark.asyncio
+async def test_backup_restore_unexpected_error_propagates_uncaught(
+    client, db_session, authenticated_admin, monkeypatch
+):
+    """An unexpected, non-validation exception during restore (a genuine bug
+    or infra failure) must NOT be repackaged as an HTTPException 400 -- it
+    should propagate so FastAPI's global unhandled_exception_handler (see
+    server/app/core/error_handlers.py) is the one that turns it into a 500
+    and logs it distinctly.
+
+    This calls the route handler directly (bypassing the HTTP layer) because
+    this app's RateLimitMiddleware (a BaseHTTPMiddleware) doesn't cleanly
+    surface unhandled exceptions as a JSON 500 response through httpx's
+    ASGITransport in tests -- a pre-existing test-harness quirk unrelated to
+    this fix. Calling the handler directly is actually the more precise way
+    to prove the specific property under test: that the except clause in
+    restore_database no longer catches everything, only ValueError/
+    IntegrityError.
+    """
+    admin, csrf_token = authenticated_admin
+    headers = {"X-CSRF-Token": csrf_token}
+
+    def _boom(employees):
+        raise RuntimeError("simulated unexpected failure, not a validation error")
+
+    monkeypatch.setattr(backup_routes, "_topo_sort_employees_by_buddy", _boom)
+
+    export_resp = await client.get("/backup/export")
+    backup_data = export_resp.json()
+    backup_data["confirmation_phrase"] = "RESTORE"
+
+    from app.schemas import BackupPayload
+
+    payload = BackupPayload(**backup_data)
+
+    before_count = await _existing_audit_log_count(db_session)
+    with pytest.raises(RuntimeError):
+        await backup_routes.restore_database(payload, db=db_session, current_user=admin)
+
+    # Nothing should have been committed: RuntimeError propagated before the
+    # single commit at the end of the happy path was ever reached.
+    assert await _existing_audit_log_count(db_session) == before_count
+
+
+@pytest.mark.asyncio
+async def test_backup_restore_commits_restore_and_audit_log_atomically(
+    client, db_session, authenticated_admin, monkeypatch
+):
+    """The restore and its audit-log row must be a single atomic transaction
+    (one commit), not two separate commits -- otherwise a failure between
+    them could leave a restored database with no audit trail."""
+    admin, csrf_token = authenticated_admin
+    headers = {"X-CSRF-Token": csrf_token}
+
+    commit_calls = []
+    original_commit = db_session.commit
+
+    async def counting_commit():
+        commit_calls.append(1)
+        return await original_commit()
+
+    monkeypatch.setattr(db_session, "commit", counting_commit)
+
+    export_resp = await client.get("/backup/export")
+    backup_data = export_resp.json()
+    backup_data["confirmation_phrase"] = "RESTORE"
+
+    resp = await client.post("/backup/restore", json=backup_data, headers=headers)
+    assert resp.status_code == 200
+
+    assert len(commit_calls) == 1
+
+    result = await db_session.execute(select(AuditLog))
+    entries = result.scalars().all()
+    assert len(entries) == 1
+    assert entries[0].action == "backup_restore"
 
 
 @pytest.mark.asyncio

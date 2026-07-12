@@ -3,6 +3,7 @@ from collections import deque
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.dependencies import RoleChecker
@@ -253,7 +254,7 @@ async def restore_database(
             )
             db.add(schedule)
 
-        await db.commit()
+        await db.flush()
 
         counts = {
             "employees_restored": len(payload.employees),
@@ -273,6 +274,10 @@ async def restore_database(
             detail=counts,
         )
         db.add(audit_entry)
+
+        # Single commit covers both the restore and its audit-log row, so a
+        # failure can never leave a successfully-restored database with no
+        # record of the restore (the two used to be separate commits).
         await db.commit()
 
         return {
@@ -280,12 +285,19 @@ async def restore_database(
             **counts,
         }
 
-    except Exception as e:
+    except (ValueError, IntegrityError) as e:
+        # Expected, client-caused validation failures: the topo-sort helpers'
+        # cycle detection, our own explicit FK pre-checks (both raise
+        # ValueError), and a genuine Postgres constraint violation. These are
+        # safe to report as 400s. ValueError messages here are always ones we
+        # raised ourselves with clean, safe text; IntegrityError may carry raw
+        # driver detail, so we don't forward str(e) for it.
         await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Database restore failed: {str(e)}"
-        )
+        if isinstance(e, IntegrityError):
+            detail = "Database restore failed: the backup data violates a database constraint."
+        else:
+            detail = f"Database restore failed: {str(e)}"
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
 
 @router.get("/audit-log", response_model=list[AuditLogOut], dependencies=[admin_dependency])
 async def get_audit_log(db: AsyncSession = Depends(get_db)):
