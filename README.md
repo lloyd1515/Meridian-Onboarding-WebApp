@@ -97,6 +97,8 @@ rm -f "$COOKIE_JAR"
 
 Point `BACKUP_EMAIL`/`BACKUP_PASSWORD` at a dedicated hr_admin service account (not a real person's login), mount `$BACKUP_DIR` to durable storage, and schedule it with either the host's crontab (`0 2 * * * BACKUP_EMAIL=... BACKUP_PASSWORD=... /path/to/backup.sh`) or a small sidecar service in `docker-compose.prod.yml` running `crond` alongside `curl`. This is a documented recipe, not a running service in this repo — add one only if the deployment actually needs unattended backups.
 
+**Handle exported backup files as credential material**: each employee's argon2 `hashed_password` is included in the export (deliberately — restore needs it to avoid resetting every password, see `server/app/routes/backup.py`), so treat every file in `$BACKUP_DIR` like a secrets file — restrict its permissions/access and never commit or share it casually.
+
 ### Email digest
 
 `server/scripts/send_digest.py` is a standalone script (not a running service) that builds an HR digest of open onboarding questions and overdue checklist tasks (`server/app/core/email_digest.py` has the pure content-building logic) and sends it over SMTP. It reads `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_ADDRESS`, and `DIGEST_RECIPIENT_EMAILS` (comma-separated) from the same `.env`/environment as the rest of the backend (`app/core/config.py`). If `SMTP_HOST` or `DIGEST_RECIPIENT_EMAILS` is unset, it logs the digest content and exits `0` instead of erroring, so it's safe to cron in any environment before SMTP is configured:

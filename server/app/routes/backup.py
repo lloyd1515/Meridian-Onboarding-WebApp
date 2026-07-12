@@ -113,6 +113,15 @@ async def export_database(db: AsyncSession = Depends(get_db)):
             "buddy_id": str(emp.buddy_id) if emp.buddy_id else None,
             "hybrid_preference": emp.hybrid_preference,
             "assigned_desk": emp.assigned_desk,
+            # Deliberately included, not an oversight: commit 53de1b0 ("carry
+            # hashed_password through the v2.1 export/restore UI path") added
+            # this field specifically because omitting it caused every
+            # employee's password to be silently reset to a placeholder on
+            # restore -- a worse bug than exposing the argon2 hash. This
+            # endpoint is RBAC-gated to hr_admin only (see admin_dependency
+            # above), so the trade-off is: authenticated admins can already
+            # read every employee's password hash via this export, in
+            # exchange for restore not corrupting everyone's credentials.
             "hashed_password": emp.hashed_password
         })
 
