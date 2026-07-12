@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useDb } from '../../context/DbContext';
 import { useAuth } from '../../context/AuthContext';
 import { Employee, isNewHire } from '../../services/db';
@@ -215,12 +215,16 @@ export const HybridScheduler: React.FC = () => {
     { label: 'FRI', desc: 'Friday' }
   ];
 
-  const scheduledEmpIds = new Set<string>();
-  Object.values(columns).forEach(list => {
-    (list || []).forEach(id => scheduledEmpIds.add(id));
-  });
-  
-  const unassignedEmployees = employees.filter(emp => !scheduledEmpIds.has(emp.id));
+  // This re-renders on every drag-state change (hover, pick-up, keyboard
+  // focus), so memoize the derived unassigned list -- it only actually needs
+  // to change when the employee roster or the day columns change.
+  const unassignedEmployees = useMemo(() => {
+    const scheduledEmpIds = new Set<string>();
+    Object.values(columns).forEach(list => {
+      (list || []).forEach(id => scheduledEmpIds.add(id));
+    });
+    return employees.filter(emp => !scheduledEmpIds.has(emp.id));
+  }, [employees, columns]);
 
   return (
     <div className="flex flex-col gap-6 font-sans">

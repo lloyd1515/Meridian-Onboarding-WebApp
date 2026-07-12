@@ -59,6 +59,21 @@ vi.mock('../../context/AuthContext', () => ({
 
 const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+describe('EmployeeDirectory search filter', () => {
+  it('filters the list to matching employees by name and hides non-matches', async () => {
+    const user = userEvent.setup();
+    render(<EmployeeDirectory />);
+
+    expect(screen.getByText('Alice Existing')).toBeInTheDocument();
+    expect(screen.getByText('Sam Editable')).toBeInTheDocument();
+
+    await user.type(screen.getByPlaceholderText(/search by name or role/i), 'Sam');
+
+    expect(screen.getByText('Sam Editable')).toBeInTheDocument();
+    expect(screen.queryByText('Alice Existing')).not.toBeInTheDocument();
+  });
+});
+
 describe('EmployeeDirectory Add New Hire', () => {
   beforeEach(() => {
     mockAddEmployee.mockReset();

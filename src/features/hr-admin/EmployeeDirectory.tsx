@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useDb } from '../../context/DbContext';
 import { useAuth } from '../../context/AuthContext';
 import { Employee } from '../../services/db';
@@ -22,12 +22,15 @@ export const EmployeeDirectory: React.FC<EmployeeDirectoryProps> = ({ readOnly =
   const [selectedDept, setSelectedDept] = useState('ALL');
   const [activeTab, setActiveTab] = useState<'list' | 'chart' | 'progress'>('list');
 
-  const filteredEmployees = employees.filter(emp => {
-    const matchesSearch = emp.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  // Recomputing this 200+ row filter on every render (e.g. unrelated state
+  // changes like opening the slide-over) is wasted work -- memoize it so it
+  // only reruns when the source list or the filter inputs actually change.
+  const filteredEmployees = useMemo(() => employees.filter(emp => {
+    const matchesSearch = emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           emp.role.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesDept = selectedDept === 'ALL' || emp.department === selectedDept;
     return matchesSearch && matchesDept;
-  });
+  }), [employees, searchQuery, selectedDept]);
 
   const parentRef = useRef<HTMLDivElement>(null);
   

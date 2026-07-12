@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useDb } from '../../context/DbContext';
 import { useAuth } from '../../context/AuthContext';
 import { getChecklists, isNewHire, taskMilestoneBucket, isTaskOverdue, Task, Employee } from '../../services/db';
@@ -97,84 +97,114 @@ export const OnboardingDashboard: React.FC = () => {
     fetchChecklists();
   }, []);
 
-  const filteredEmployees = employees.filter(emp => {
-    const matchesSearch = emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          emp.role.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesDept = selectedDept === 'ALL' || emp.department === selectedDept;
-    const matchesNewHire = !onlyNewHires || isNewHire(emp, simulationDate);
-    return matchesSearch && matchesDept && matchesNewHire;
-  });
-
-  let totalEmployees = filteredEmployees.length;
-  let totalCompleted = 0;
-  let totalSkipped = 0;
-  let totalPending = 0;
-  let totalBlocked = 0;
-  let totalCompletionRatesSum = 0;
-
-  interface SkippedTaskFeedItem {
-    employeeName: string;
-    taskTitle: string;
-    skipReason: string;
-  }
-
-  const skipJustificationFeed: SkippedTaskFeedItem[] = [];
-
-  const employeeStats = filteredEmployees.map(emp => {
-    const checklist = checklists[emp.id] || [];
-    const total = checklist.length;
-    const completed = checklist.filter(t => t.status === 'completed').length;
-    const skipped = checklist.filter(t => t.status === 'skipped').length;
-    const pending = checklist.filter(t => t.status === 'pending' || t.status === 'in_progress').length;
-    const blocked = checklist.filter(t => t.status === 'blocked').length;
-
-    totalCompleted += completed;
-    totalSkipped += skipped;
-    totalPending += pending;
-    totalBlocked += blocked;
-
-    const completionRate = total > 0 ? (completed / total) * 100 : 0;
-    totalCompletionRatesSum += completionRate;
-
-    checklist.forEach(task => {
-      if (task.status === 'skipped') {
-        skipJustificationFeed.push({
-          employeeName: emp.name,
-          taskTitle: task.title,
-          skipReason: task.skipReason || 'No justification provided.',
-        });
-      }
+  // This whole block re-derives a per-task-status breakdown for every
+  // filtered employee (up to the full 200+ row roster). Recomputing it on
+  // every render -- including on toggleExpand, this component's most
+  // frequent interaction -- is wasted work, so it's memoized as one unit
+  // (the totals/feed below are accumulated as a side effect of the same
+  // pass over employeeStats, so they have to be memoized together).
+  const {
+    filteredEmployees,
+    employeeStats,
+    totalEmployees,
+    totalCompleted,
+    totalSkipped,
+    totalPending,
+    totalBlocked,
+    skipJustificationFeed,
+    avgCompletionRate,
+  } = useMemo(() => {
+    const filteredEmployees = employees.filter(emp => {
+      const matchesSearch = emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            emp.role.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesDept = selectedDept === 'ALL' || emp.department === selectedDept;
+      const matchesNewHire = !onlyNewHires || isNewHire(emp, simulationDate);
+      return matchesSearch && matchesDept && matchesNewHire;
     });
 
-    const tasks30 = checklist.filter(t => taskMilestoneBucket(t) === 30);
-    const tasks60 = checklist.filter(t => taskMilestoneBucket(t) === 60);
-    const tasks90 = checklist.filter(t => taskMilestoneBucket(t) === 90);
+    const totalEmployees = filteredEmployees.length;
+    let totalCompleted = 0;
+    let totalSkipped = 0;
+    let totalPending = 0;
+    let totalBlocked = 0;
+    let totalCompletionRatesSum = 0;
 
-    const pct30 = tasks30.length > 0 ? (tasks30.filter(t => t.status === 'completed').length / tasks30.length) * 100 : 0;
-    const pct60 = tasks60.length > 0 ? (tasks60.filter(t => t.status === 'completed').length / tasks60.length) * 100 : 0;
-    const pct90 = tasks90.length > 0 ? (tasks90.filter(t => t.status === 'completed').length / tasks90.length) * 100 : 0;
+    interface SkippedTaskFeedItem {
+      employeeName: string;
+      taskTitle: string;
+      skipReason: string;
+    }
 
-    const overdueCount = checklist.filter(t => isTaskOverdue(t, simulationDate)).length;
+    const skipJustificationFeed: SkippedTaskFeedItem[] = [];
+
+    const employeeStats = filteredEmployees.map(emp => {
+      const checklist = checklists[emp.id] || [];
+      const total = checklist.length;
+      const completed = checklist.filter(t => t.status === 'completed').length;
+      const skipped = checklist.filter(t => t.status === 'skipped').length;
+      const pending = checklist.filter(t => t.status === 'pending' || t.status === 'in_progress').length;
+      const blocked = checklist.filter(t => t.status === 'blocked').length;
+
+      totalCompleted += completed;
+      totalSkipped += skipped;
+      totalPending += pending;
+      totalBlocked += blocked;
+
+      const completionRate = total > 0 ? (completed / total) * 100 : 0;
+      totalCompletionRatesSum += completionRate;
+
+      checklist.forEach(task => {
+        if (task.status === 'skipped') {
+          skipJustificationFeed.push({
+            employeeName: emp.name,
+            taskTitle: task.title,
+            skipReason: task.skipReason || 'No justification provided.',
+          });
+        }
+      });
+
+      const tasks30 = checklist.filter(t => taskMilestoneBucket(t) === 30);
+      const tasks60 = checklist.filter(t => taskMilestoneBucket(t) === 60);
+      const tasks90 = checklist.filter(t => taskMilestoneBucket(t) === 90);
+
+      const pct30 = tasks30.length > 0 ? (tasks30.filter(t => t.status === 'completed').length / tasks30.length) * 100 : 0;
+      const pct60 = tasks60.length > 0 ? (tasks60.filter(t => t.status === 'completed').length / tasks60.length) * 100 : 0;
+      const pct90 = tasks90.length > 0 ? (tasks90.filter(t => t.status === 'completed').length / tasks90.length) * 100 : 0;
+
+      const overdueCount = checklist.filter(t => isTaskOverdue(t, simulationDate)).length;
+
+      return {
+        emp,
+        total,
+        completed,
+        skipped,
+        pending,
+        blocked,
+        completionRate,
+        tasks30,
+        tasks60,
+        tasks90,
+        pct30,
+        pct60,
+        pct90,
+        overdueCount,
+      };
+    });
+
+    const avgCompletionRate = totalEmployees > 0 ? totalCompletionRatesSum / totalEmployees : 0;
 
     return {
-      emp,
-      total,
-      completed,
-      skipped,
-      pending,
-      blocked,
-      completionRate,
-      tasks30,
-      tasks60,
-      tasks90,
-      pct30,
-      pct60,
-      pct90,
-      overdueCount,
+      filteredEmployees,
+      employeeStats,
+      totalEmployees,
+      totalCompleted,
+      totalSkipped,
+      totalPending,
+      totalBlocked,
+      skipJustificationFeed,
+      avgCompletionRate,
     };
-  });
-
-  const avgCompletionRate = totalEmployees > 0 ? totalCompletionRatesSum / totalEmployees : 0;
+  }, [employees, checklists, searchQuery, selectedDept, onlyNewHires, simulationDate]);
 
   const toggleExpand = (empId: string) => {
     setExpandedEmployeeId(expandedEmployeeId === empId ? null : empId);
