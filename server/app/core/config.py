@@ -34,6 +34,28 @@ class Settings(BaseSettings):
     # work via the existing copy-to-clipboard fallback.
     SLACK_WEBHOOK_URL: Optional[str] = Field(default=None)
 
+    # Email digest (optional): HR daily digest of open questions + overdue
+    # checklist tasks (server/scripts/send_digest.py). When SMTP_HOST or
+    # DIGEST_RECIPIENT_EMAILS is unset, the script logs the digest and exits
+    # 0 instead of erroring, mirroring SLACK_WEBHOOK_URL's no-op pattern so
+    # it's safe to cron in any environment.
+    SMTP_HOST: Optional[str] = Field(default=None)
+    SMTP_PORT: int = Field(default=587)
+    SMTP_USERNAME: Optional[str] = Field(default=None)
+    SMTP_PASSWORD: Optional[str] = Field(default=None)
+    SMTP_FROM_ADDRESS: Optional[str] = Field(default=None)
+    # Plain comma-separated string, deliberately NOT List[str]: pydantic-settings
+    # tries json.loads on List[str] env values before falling back to anything
+    # else, which crashes on a plain CSV value like "a@x.com,b@x.com" (the same
+    # trap BACKEND_CORS_ORIGINS works around with its own field_validator).
+    # Use digest_recipient_list() to get a parsed list.
+    DIGEST_RECIPIENT_EMAILS: Optional[str] = Field(default=None)
+
+    def digest_recipient_list(self) -> List[str]:
+        if not self.DIGEST_RECIPIENT_EMAILS:
+            return []
+        return [e.strip() for e in self.DIGEST_RECIPIENT_EMAILS.split(",") if e.strip()]
+
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
