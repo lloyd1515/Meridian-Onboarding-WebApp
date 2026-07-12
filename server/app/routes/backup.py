@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.dependencies import RoleChecker
 from app.models import Employee, ChecklistTask, ScheduleEntry, AuditLog
-from app.schemas import BackupChecklistTaskInput, BackupPayload, AuditLogOut
+from app.schemas import BackupChecklistTaskInput, BackupEmployeeInput, BackupPayload, AuditLogOut
 
 router = APIRouter(prefix="/backup", tags=["Backup & Restore"])
 
@@ -47,6 +47,47 @@ def _topo_sort_tasks_by_blocked_by(
     if len(ordered) != len(tasks):
         raise ValueError(
             "Checklist task backup contains a blocked_by cycle; cannot determine insert order."
+        )
+    return ordered
+
+
+def _topo_sort_employees_by_buddy(
+    employees: list[BackupEmployeeInput],
+) -> list[BackupEmployeeInput]:
+    """Order employees so that an employee's buddy (if present in this same
+    batch) is inserted before the employee itself, satisfying the employees
+    self-referential FK (employees_buddy_id_fkey) on Postgres. Mirrors
+    _topo_sort_tasks_by_blocked_by above -- /backup/export has no ORDER BY, so
+    restore order is otherwise whatever Postgres happens to return, which can
+    place an employee before their buddy and trip the FK.
+
+    A genuine cycle (two employees who are mutually each other's buddy) can't
+    be resolved into any valid insert order by this same-table self-FK, since
+    neither row can exist before the other. Real practice never assigns buddy
+    pairs that way, so -- like the tasks helper -- we reject a cycle with a
+    clear error instead of ever partially inserting or crashing on a raw
+    Postgres FK violation."""
+    by_id = {e.id: e for e in employees}
+    in_degree = {e.id: 0 for e in employees}
+    blocks = {e.id: [] for e in employees}  # buddy id -> employees waiting on it
+    for e in employees:
+        if e.buddy_id is not None and e.buddy_id in by_id:
+            in_degree[e.id] += 1
+            blocks[e.buddy_id].append(e.id)
+
+    queue = deque(eid for eid, degree in in_degree.items() if degree == 0)
+    ordered = []
+    while queue:
+        eid = queue.popleft()
+        ordered.append(by_id[eid])
+        for dependent_id in blocks[eid]:
+            in_degree[dependent_id] -= 1
+            if in_degree[dependent_id] == 0:
+                queue.append(dependent_id)
+
+    if len(ordered) != len(employees):
+        raise ValueError(
+            "Employee backup contains a buddy_id cycle; cannot determine insert order."
         )
     return ordered
 
@@ -143,8 +184,12 @@ async def restore_database(
 
         # 3. Re-populate tables
         # Track inserted entities to check integrity
+        # Sort by buddy_id dependency first: employees_buddy_id_fkey is a
+        # real, enforced constraint on Postgres, so an employee must not be
+        # inserted before the buddy they reference (see
+        # _topo_sort_employees_by_buddy's docstring).
         employee_map = {}
-        for emp_data in payload.employees:
+        for emp_data in _topo_sort_employees_by_buddy(payload.employees):
             emp = Employee(
                 id=emp_data.id,
                 name=emp_data.name,

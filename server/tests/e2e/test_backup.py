@@ -207,6 +207,134 @@ async def test_backup_restore_orders_blocked_by_before_dependent_task(
     assert dependent.blocked_by == blocker.id
 
 
+@pytest.mark.asyncio
+async def test_backup_restore_orders_buddy_before_dependent_employee(
+    client, db_session, authenticated_admin
+):
+    """employees.buddy_id is a real, enforced FK (employees_buddy_id_fkey) on
+    Postgres. /backup/export has no ORDER BY, so an employee whose buddy_id
+    points at a colleague listed LATER in the export array will trip the FK
+    on a naive payload-order insert. Mirrors
+    test_backup_restore_orders_blocked_by_before_dependent_task for
+    checklist_tasks -- the restore handler must topologically sort
+    employees by buddy_id the same way it already sorts tasks by
+    blocked_by."""
+    admin, csrf_token = authenticated_admin
+    headers = {"X-CSRF-Token": csrf_token}
+
+    export_resp = await client.get("/backup/export")
+    assert export_resp.status_code == 200
+    backup_data = export_resp.json()
+
+    import uuid
+
+    buddy_id = str(uuid.uuid4())
+    hire_id = str(uuid.uuid4())
+
+    # Intentionally reversed: the new hire (buddy_id=buddy_id) is listed
+    # BEFORE the buddy they reference in the payload array.
+    backup_data["employees"] = [
+        {
+            "id": hire_id,
+            "name": "New Hire",
+            "email": "new.hire.buddy-order@meridian.com",
+            "slack_handle": "@new.hire.buddy-order",
+            "role": "employee",
+            "department": "Engineering",
+            "hire_date": "2026-01-01",
+            "buddy_id": buddy_id,
+            "hybrid_preference": "HYBRID",
+            "assigned_desk": None,
+            "hashed_password": "irrelevant-placeholder",
+        },
+        {
+            "id": buddy_id,
+            "name": "Buddy Employee",
+            "email": "buddy.buddy-order@meridian.com",
+            "slack_handle": "@buddy.buddy-order",
+            "role": "employee",
+            "department": "Engineering",
+            "hire_date": "2020-01-01",
+            "buddy_id": None,
+            "hybrid_preference": "HYBRID",
+            "assigned_desk": None,
+            "hashed_password": "irrelevant-placeholder",
+        },
+    ]
+    backup_data["checklist_tasks"] = []
+    backup_data["schedule_entries"] = []
+    backup_data["confirmation_phrase"] = "RESTORE"
+
+    restore_resp = await client.post("/backup/restore", json=backup_data, headers=headers)
+    assert restore_resp.status_code == 200
+    assert restore_resp.json()["employees_restored"] == 2
+
+    import uuid as uuid_mod
+    hire = await db_session.get(Employee, uuid_mod.UUID(hire_id))
+    buddy = await db_session.get(Employee, uuid_mod.UUID(buddy_id))
+    assert hire is not None and buddy is not None
+    assert hire.buddy_id == buddy.id
+
+
+@pytest.mark.asyncio
+async def test_backup_restore_rejects_mutual_buddy_cycle(
+    client, db_session, authenticated_admin
+):
+    """A genuine cycle (two employees who are each other's buddy) can't be
+    inserted in dependency order at all via the self-referential FK -- there
+    is no valid ordering. The restore handler must reject it with a clean
+    400, not a raw Postgres FK/constraint error."""
+    admin, csrf_token = authenticated_admin
+    headers = {"X-CSRF-Token": csrf_token}
+
+    export_resp = await client.get("/backup/export")
+    assert export_resp.status_code == 200
+    backup_data = export_resp.json()
+
+    import uuid
+
+    emp_a_id = str(uuid.uuid4())
+    emp_b_id = str(uuid.uuid4())
+
+    backup_data["employees"] = [
+        {
+            "id": emp_a_id,
+            "name": "Employee A",
+            "email": "employee.a.cycle@meridian.com",
+            "slack_handle": "@employee.a.cycle",
+            "role": "employee",
+            "department": "Engineering",
+            "hire_date": "2022-01-01",
+            "buddy_id": emp_b_id,
+            "hybrid_preference": "HYBRID",
+            "assigned_desk": None,
+            "hashed_password": "irrelevant-placeholder",
+        },
+        {
+            "id": emp_b_id,
+            "name": "Employee B",
+            "email": "employee.b.cycle@meridian.com",
+            "slack_handle": "@employee.b.cycle",
+            "role": "employee",
+            "department": "Engineering",
+            "hire_date": "2022-01-01",
+            "buddy_id": emp_a_id,
+            "hybrid_preference": "HYBRID",
+            "assigned_desk": None,
+            "hashed_password": "irrelevant-placeholder",
+        },
+    ]
+    backup_data["checklist_tasks"] = []
+    backup_data["schedule_entries"] = []
+    backup_data["confirmation_phrase"] = "RESTORE"
+
+    before_count = await _existing_audit_log_count(db_session)
+    restore_resp = await client.post("/backup/restore", json=backup_data, headers=headers)
+    assert restore_resp.status_code == 400
+    assert "cycle" in restore_resp.json()["detail"].lower()
+    assert await _existing_audit_log_count(db_session) == before_count
+
+
 async def _existing_audit_log_count(db_session) -> int:
     result = await db_session.execute(select(AuditLog))
     return len(result.scalars().all())
