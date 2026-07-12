@@ -1,0 +1,23 @@
+
+Hi Vlad!
+
+Congratulations! You have successfully passed the initial screening stage and have been selected as one of the candidates invited to complete the practical exercise for our internship program.
+What's next
+Please find the full assignment attached.
+We kindly ask you to read it carefully before you start, including the section describing the required .md files, which are considered part of the final deliverable just like the source code itself.
+Working period: June 26 – July 5, 2026 hour 23:59*
+How to submit
+At the end of the working period, please complete the form below with the following information:
+🔗 [Technical Exercise Submission Form – Internship @Qubiz]
+In the form, you will need to provide:
+
+    A link to your public Git repository (GitHub or GitLab)
+    A link to your demo video, using one of the following accepted formats:
+        YouTube — video set to Unlisted
+        Google Drive — file shared with "Anyone with the link" access
+        A video file directly in your repository (if the file size allows it, preferably under 100 MB)
+
+If you have any questions or need clarification regarding the assignment, feel free to contact us at internship@qubiz.com.
+
+Good luck! We look forward to seeing what you build.
+*Please let us know if this deadline is realistic for you and confirm that you will be able to submit your solution within this timeframe

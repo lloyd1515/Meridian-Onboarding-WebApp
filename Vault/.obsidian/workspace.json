@@ -1,0 +1,191 @@
+{
+  "main": {
+    "id": "34b83684f8748dac",
+    "type": "split",
+    "children": [
+      {
+        "id": "87911bd99a88c64e",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "904318198f5964f3",
+            "type": "leaf",
+            "state": {
+              "type": "pdf",
+              "state": {
+                "file": "Tasks/Meridian Project (EN).pdf"
+              },
+              "icon": "lucide-file-text",
+              "title": "Meridian Project (EN)"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "2ceb27086c8fa4fb",
+    "type": "split",
+    "children": [
+      {
+        "id": "6f36f1e934ba9264",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "15fc8ffa014d2bcc",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "e4262c2838dd5ad6",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "4b2f926902a2ced4",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "e3ad8821dd43d9be",
+    "type": "split",
+    "children": [
+      {
+        "id": "1e3b3c2e4e625128",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "b948474b8746f297",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Tasks/Meridian Project (EN).pdf",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for Meridian Project (EN)"
+            }
+          },
+          {
+            "id": "59bf7dcb14c5f71d",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "Tasks/Meridian Project (EN).pdf",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from Meridian Project (EN)"
+            }
+          },
+          {
+            "id": "6b05f5bfa8a20590",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "93aafbc7197bccb4",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "2555417b03831e5c",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Tasks/Meridian Project (EN).pdf",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of Meridian Project (EN)"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "904318198f5964f3",
+  "lastOpenFiles": [
+    "Meridian-Improvement-Flow.canvas",
+    "qubiz-website-design-research.md",
+    "Tasks/Meridian Project (EN).pdf",
+    "Meridian-Improvement-Flow.canvas.tmp.20724.09712aa129d8"
+  ]
+}
