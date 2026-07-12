@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { taskMilestoneBucket, isTaskOverdue, Task, Employee, generateBackupExport, validateAndRestoreBackup, saveEmployee, saveScheduler, saveEmployeeChecklist, getSlackConfigured, sendSlackMessage, mapEmployeeToFrontend } from './db';
+import { taskMilestoneBucket, isTaskOverdue, Task, Employee, generateBackupExport, validateAndRestoreBackup, saveEmployee, saveScheduler, saveEmployeeChecklist, getSlackConfigured, sendSlackMessage, mapEmployeeToFrontend, getEmployees, getEmployeeChecklist } from './db';
 
 const baseTask: Task = {
   id: 't1',
@@ -146,6 +146,66 @@ describe('backup export/restore password round-trip', () => {
     expect(restorePayload.employees[0].hashed_password).toBe(
       '$argon2id$v=19$m=65536,t=3,p=2$supersecurepasswordplaceholder'
     );
+  });
+});
+
+describe('primary read path Zod validation', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const validServerEmployee = {
+    id: 'emp-1',
+    name: 'Jane Doe',
+    email: 'jane.doe@meridian.com',
+    slack_handle: '@jane.doe',
+    role: 'employee',
+    department: 'Engineering',
+    hire_date: '2026-01-15',
+    buddy_id: null,
+    hybrid_preference: 'HYBRID',
+    assigned_desk: null,
+  };
+
+  it('getEmployees drops a malformed record (e.g. missing @meridian.com email) instead of returning it as-is', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const malformedServerEmployee = { ...validServerEmployee, id: 'emp-2', email: 'not-a-meridian-email@example.com' };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [validServerEmployee, malformedServerEmployee],
+    }));
+
+    const employees = await getEmployees();
+
+    expect(employees).toHaveLength(1);
+    expect(employees[0].id).toBe('emp-1');
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Discarding malformed employee'),
+      expect.anything(),
+      expect.anything()
+    );
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('getEmployeeChecklist drops a malformed task (e.g. invalid status) instead of returning it as-is', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const validTask = { id: 't-1', title: 'Set up laptop', description: '', status: 'pending', dependencies: [] };
+    const malformedTask = { id: 't-2', title: 'Bad task', description: '', status: 'not-a-real-status', dependencies: [] };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [validTask, malformedTask],
+    }));
+
+    const tasks = await getEmployeeChecklist('emp-1');
+
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0].id).toBe('t-1');
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Discarding malformed task'),
+      expect.anything(),
+      expect.anything()
+    );
+    consoleErrorSpy.mockRestore();
   });
 });
 

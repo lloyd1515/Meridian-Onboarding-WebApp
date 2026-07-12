@@ -92,6 +92,26 @@ export const BackupSchema = z.object({
   scheduler: z.record(z.string(), z.array(z.string())),
 });
 
+// Validates mapped API records against their Zod schema so a malformed
+// backend response fails loudly (a console.error, not a silent shape
+// mismatch) instead of corrupting UI state. Previously only the backup/CSV
+// import path (BackupRestore.tsx) enforced these schemas; this applies the
+// same guarantee to the primary API read path (getEmployees/getEmployeeChecklist).
+// Malformed records are dropped rather than aborting the whole list so one
+// bad row doesn't blank out the entire directory/checklist.
+function parseValid<T>(schema: z.ZodType<T>, items: unknown[], label: string): T[] {
+  const valid: T[] = [];
+  for (const item of items) {
+    const parsed = schema.safeParse(item);
+    if (parsed.success) {
+      valid.push(parsed.data);
+    } else {
+      console.error(`Discarding malformed ${label} from API response:`, parsed.error.issues, item);
+    }
+  }
+  return valid;
+}
+
 export interface AuditLogEntry {
   id: string;
   actorEmployeeId: string | null;
@@ -235,13 +255,13 @@ export const getEmployees = async (): Promise<Employee[]> => {
         const meRes = await customFetch(`${API_URL}/employees/me`, credentialsOptions);
         if (meRes.ok) {
           const me = await meRes.json();
-          return [mapEmployeeToFrontend(me)];
+          return parseValid(EmployeeSchema, [mapEmployeeToFrontend(me)], 'employee');
         }
       }
       return [];
     }
     const data = await res.json();
-    return data.map(mapEmployeeToFrontend);
+    return parseValid(EmployeeSchema, data.map(mapEmployeeToFrontend), 'employee');
   } catch (e) {
     console.error('Error fetching employees:', e);
     return [];
@@ -301,11 +321,15 @@ export const getChecklists = async (): Promise<Record<string, Task[]>> => {
     const data = await res.json();
     const byEmployee: Record<string, Task[]> = {};
     data.forEach((t: any) => {
-      const task: Task = mapTaskToFrontend(t);
+      const parsed = TaskSchema.safeParse(mapTaskToFrontend(t));
+      if (!parsed.success) {
+        console.error('Discarding malformed task from API response:', parsed.error.issues, t);
+        return;
+      }
       if (!byEmployee[t.employee_id]) {
         byEmployee[t.employee_id] = [];
       }
-      byEmployee[t.employee_id].push(task);
+      byEmployee[t.employee_id].push(parsed.data);
     });
     return byEmployee;
   } catch (e) {
@@ -319,7 +343,7 @@ export const getEmployeeChecklist = async (employeeId: string): Promise<Task[]> 
     const res = await customFetch(`${API_URL}/checklists/${employeeId}`, credentialsOptions);
     if (!res.ok) return [];
     const data = await res.json();
-    return data.map(mapTaskToFrontend);
+    return parseValid(TaskSchema, data.map(mapTaskToFrontend), 'task');
   } catch (e) {
     console.error('Error fetching employee checklist:', e);
     return [];
