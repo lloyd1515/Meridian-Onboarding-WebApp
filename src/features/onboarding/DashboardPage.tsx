@@ -18,6 +18,8 @@ export const DashboardPage: React.FC = () => {
   const [meetLink, setMeetLink] = useState<string | null>(null);
   const [activeDayIdx, setActiveDayIdx] = useState<number>(0);
   const [isDownloadingAgenda, setIsDownloadingAgenda] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionWarning, setActionWarning] = useState<string | null>(null);
 
   useEffect(() => {
     if (currentUser) {
@@ -51,6 +53,9 @@ export const DashboardPage: React.FC = () => {
   const handleToggleDay = async (dayIdx: string) => {
     if (isPreboarding || !currentUser) return;
 
+    setActionError(null);
+    setActionWarning(null);
+
     const currentList = scheduler[dayIdx] || [];
     const isUserScheduled = currentList.includes(currentUser.id);
     let newList: string[];
@@ -69,7 +74,7 @@ export const DashboardPage: React.FC = () => {
 
       const dayLimitError = getOfficeDayLimitError(scheduledDaysCount);
       if (dayLimitError) {
-        alert(dayLimitError);
+        setActionError(dayLimitError);
         return;
       }
 
@@ -82,14 +87,14 @@ export const DashboardPage: React.FC = () => {
       // (day 130 itself is fillable — same rule as HybridScheduler/backend).
       const capacityError = getOfficeCapacityError(totalOccupancy);
       if (capacityError) {
-        alert(capacityError);
+        setActionError(capacityError);
         return;
       }
 
       if (totalOccupancy >= OFFICE_CAPACITY_WARNING) {
-        alert('⚠️ ALERT: Capacity threshold reached. No more employees can be scheduled on this day.');
+        setActionWarning('⚠️ ALERT: Capacity threshold reached. No more employees can be scheduled on this day.');
       }
-      
+
       newList = [...currentList, currentUser.id];
     }
 
@@ -104,11 +109,12 @@ export const DashboardPage: React.FC = () => {
   const handleDownloadAgenda = async () => {
     if (isDownloadingAgenda) return;
     setIsDownloadingAgenda(true);
+    setActionError(null);
     try {
       await downloadAgendaIcs();
     } catch (e) {
       console.error('Error downloading agenda calendar file:', e);
-      alert('Could not download the calendar file. Please try again.');
+      setActionError('Could not download the calendar file. Please try again.');
     } finally {
       setIsDownloadingAgenda(false);
     }
@@ -149,6 +155,18 @@ export const DashboardPage: React.FC = () => {
           </p>
         )}
       </div>
+
+      {actionError && (
+        <div className="bg-red-50 border border-danger text-danger text-body-sm p-3 rounded-xl font-mono">
+          {actionError}
+        </div>
+      )}
+
+      {actionWarning && (
+        <div className="p-3 bg-amber-50 border border-amber-300 text-amber-900 rounded-xl font-mono text-body-sm shadow-sm">
+          {actionWarning}
+        </div>
+      )}
 
       {!isPreboarding && tasks.length > 0 && (
         <div className="border border-border bg-surface p-5 rounded-2xl shadow-sm flex items-start sm:items-center gap-4 flex-col sm:flex-row">

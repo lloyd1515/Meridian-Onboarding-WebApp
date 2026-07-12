@@ -25,6 +25,7 @@ export const HybridScheduler: React.FC = () => {
   const [isDirty, setIsDirty] = useState(false);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [buddyWarnings, setBuddyWarnings] = useState<string[]>([]);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (scheduler && !isDirty) {
@@ -102,13 +103,13 @@ export const HybridScheduler: React.FC = () => {
 
     const dayLimitError = getOfficeDayLimitError(scheduledDaysCount);
     if (dayLimitError) {
-      alert(dayLimitError);
+      setActionError(dayLimitError);
       return;
     }
 
     const capacityError = getOfficeCapacityError(targetList.length + 1);
     if (capacityError) {
-      alert(capacityError);
+      setActionError(capacityError);
       return;
     }
 
@@ -123,6 +124,7 @@ export const HybridScheduler: React.FC = () => {
     setColumns(updatedCols);
     setIsDirty(true);
     setSaveStatus(null);
+    setActionError(null);
 
     setDraggedEmpId(null);
     setSourceColIdx(null);
@@ -177,6 +179,7 @@ export const HybridScheduler: React.FC = () => {
     setIsDirty(false);
     setBuddyWarnings([]);
     setSaveStatus(null);
+    setActionError(null);
   };
 
   const getScheduledDetails = (empId: string, colIdx: string): ScheduledEmployee | null => {
@@ -265,6 +268,12 @@ export const HybridScheduler: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {actionError && (
+        <div className="bg-red-50 border border-danger text-danger text-body-sm p-3 rounded-xl font-mono">
+          {actionError}
+        </div>
+      )}
 
       {saveStatus && (
         <div className="p-3.5 bg-slate-50 border border-border text-text-primary rounded-xl font-mono text-xs shadow-sm">

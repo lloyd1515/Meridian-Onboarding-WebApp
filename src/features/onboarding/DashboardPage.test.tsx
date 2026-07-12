@@ -86,4 +86,63 @@ describe('DashboardPage agenda calendar export', () => {
 
     expect(mockDownloadAgendaIcs).toHaveBeenCalledTimes(1);
   });
+
+  it('shows an inline error banner (not a native alert) when the download fails', async () => {
+    mockDownloadAgendaIcs.mockRejectedValue(new Error('network error'));
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>
+    );
+
+    const button = await screen.findByRole('button', { name: /download \.ics/i });
+    await user.click(button);
+
+    expect(await screen.findByText('Could not download the calendar file. Please try again.')).toBeInTheDocument();
+    expect(alertSpy).not.toHaveBeenCalled();
+    alertSpy.mockRestore();
+  });
+});
+
+describe('DashboardPage office-day limit', () => {
+  beforeEach(() => {
+    mockGetEmployeeChecklist.mockReset();
+    mockGetEmployeeChecklist.mockResolvedValue([]);
+  });
+
+  it('shows an inline error banner (not a native alert) when the weekly office-day limit is reached', async () => {
+    vi.resetModules();
+    vi.doMock('../../context/DbContext', () => ({
+      useDb: () => ({
+        employees: [currentUser],
+        // currentUser is already scheduled on 3 days (Mon/Tue/Wed); toggling
+        // Thursday on should hit the MAX_OFFICE_DAYS_PER_WEEK limit.
+        scheduler: { '0': ['employee-1'], '1': ['employee-1'], '2': ['employee-1'], '3': [], '4': [] },
+        isLoading: false,
+        refreshData: vi.fn(),
+        addEmployee: vi.fn(),
+        updateEmployee: vi.fn(),
+        updateScheduler: vi.fn(),
+      }),
+    }));
+    const { DashboardPage: DashboardPageWithFullWeek } = await import('./DashboardPage');
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <DashboardPageWithFullWeek />
+      </MemoryRouter>
+    );
+
+    const thursdayButton = await screen.findByRole('button', { name: /^Thu/ });
+    await user.click(thursdayButton);
+
+    expect(await screen.findByText(/Strict limit reached/)).toBeInTheDocument();
+    expect(alertSpy).not.toHaveBeenCalled();
+    alertSpy.mockRestore();
+    vi.doUnmock('../../context/DbContext');
+    vi.resetModules();
+  });
 });
