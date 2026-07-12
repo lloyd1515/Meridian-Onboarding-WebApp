@@ -246,7 +246,7 @@ async def test_patch_employee_updates_editable_fields(client, db_session, authen
         name="Buddy One",
         email="buddy.one@meridian.com",
         slack_handle="@buddy.one",
-        role="buddy",
+        role="employee",
         department="Engineering",
         hire_date=datetime.date(2022, 1, 15),
         hashed_password=hash_password("password123"),
@@ -391,6 +391,33 @@ async def test_employee_creation_rejects_invalid_enum_values_and_domain(client, 
 
     # non-company email domain
     resp = await client.post("/employees", json={**base, "email": "bad.input@gmail.com"}, headers=headers)
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_employee_creation_rejects_buddy_role(client, db_session, authenticated_admin):
+    # "buddy" is not a real assignable role -- being someone's buddy is
+    # derived from Employee.buddy_id pointing at them, not from their own
+    # role. It must never validate as an EmployeeRole (see EmployeeSaveInput /
+    # BackupEmployeeInput in schemas.py), or a row that actually persisted it
+    # would get locked out of every RoleChecker-gated route, including
+    # GET /employees itself.
+    admin, csrf_token = authenticated_admin
+    headers = {"X-CSRF-Token": csrf_token}
+
+    payload = {
+        "id": str(uuid.uuid4()),
+        "name": "Would Be Buddy",
+        "email": "would.be.buddy@meridian.com",
+        "slack_handle": "@would.be.buddy",
+        "role": "buddy",
+        "department": "Sales",
+        "hire_date": "2026-08-01",
+        "buddy_id": None,
+        "hybrid_preference": "HYBRID",
+        "assigned_desk": None,
+    }
+    resp = await client.post("/employees", json=payload, headers=headers)
     assert resp.status_code == 422
 
 

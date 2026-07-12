@@ -11,7 +11,7 @@ async def test_employee_creation_and_relations(db_session):
         name="Alex Buddy",
         email="alex.buddy@meridian.com",
         slack_handle="@alex.buddy",
-        role="buddy",
+        role="employee",
         department="Engineering",
         hire_date=datetime.date(2023, 6, 10),
         hashed_password="securepassword",

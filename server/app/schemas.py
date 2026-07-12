@@ -10,7 +10,7 @@ def _require_meridian_domain(value: str) -> str:
         raise ValueError("Email must be a @meridian.com address")
     return value
 
-EmployeeRole = Literal["hr_admin", "employee", "preboardee", "buddy"]
+EmployeeRole = Literal["hr_admin", "employee", "preboardee"]
 HybridPreference = Literal["OFFICE", "REMOTE", "HYBRID"]
 
 class LoginRequest(BaseModel):
