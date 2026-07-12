@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useDb } from '../../context/DbContext';
 import { useAuth } from '../../context/AuthContext';
 import { Employee, isNewHire } from '../../services/db';
-import { OFFICE_CAPACITY, OFFICE_CAPACITY_WARNING, MAX_OFFICE_DAYS_PER_WEEK } from '../../constants/scheduling';
+import { OFFICE_CAPACITY, OFFICE_CAPACITY_WARNING } from '../../constants/scheduling';
+import { getOfficeDayLimitError, getOfficeCapacityError } from '../../utils/officeCapacity';
 
 interface ScheduledEmployee extends Employee {
   isNewHire: boolean;
@@ -99,13 +100,15 @@ export const HybridScheduler: React.FC = () => {
       return count;
     }, 0);
 
-    if (scheduledDaysCount >= MAX_OFFICE_DAYS_PER_WEEK) {
-      alert(`🔒 Strict limit reached: This employee is already scheduled for ${MAX_OFFICE_DAYS_PER_WEEK} office days this week.`);
+    const dayLimitError = getOfficeDayLimitError(scheduledDaysCount);
+    if (dayLimitError) {
+      alert(dayLimitError);
       return;
     }
 
-    if (targetList.length + 1 > OFFICE_CAPACITY) {
-      alert(`🔒 Capacity limit reached! The office cannot exceed ${OFFICE_CAPACITY} employees on any single day.`);
+    const capacityError = getOfficeCapacityError(targetList.length + 1);
+    if (capacityError) {
+      alert(capacityError);
       return;
     }
 

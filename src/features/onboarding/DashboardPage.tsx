@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useDb } from '../../context/DbContext';
 import { getEmployeeChecklist, taskMilestoneBucket, Task, Employee, downloadAgendaIcs } from '../../services/db';
-import { OFFICE_CAPACITY, OFFICE_CAPACITY_WARNING, MAX_OFFICE_DAYS_PER_WEEK } from '../../constants/scheduling';
+import { OFFICE_CAPACITY, OFFICE_CAPACITY_WARNING } from '../../constants/scheduling';
+import { getOfficeDayLimitError, getOfficeCapacityError } from '../../utils/officeCapacity';
 import { useNavigate } from 'react-router-dom';
 
 export const DashboardPage: React.FC = () => {
@@ -66,8 +67,9 @@ export const DashboardPage: React.FC = () => {
         }
       });
 
-      if (scheduledDaysCount >= MAX_OFFICE_DAYS_PER_WEEK) {
-        alert(`🔒 Strict limit reached: This employee is already scheduled for ${MAX_OFFICE_DAYS_PER_WEEK} office days this week.`);
+      const dayLimitError = getOfficeDayLimitError(scheduledDaysCount);
+      if (dayLimitError) {
+        alert(dayLimitError);
         return;
       }
 
@@ -78,8 +80,9 @@ export const DashboardPage: React.FC = () => {
 
       // Reject only when the total after adding would exceed the cap
       // (day 130 itself is fillable — same rule as HybridScheduler/backend).
-      if (totalOccupancy > OFFICE_CAPACITY) {
-        alert(`🔒 Capacity limit reached! The office cannot exceed ${OFFICE_CAPACITY} employees on any single day.`);
+      const capacityError = getOfficeCapacityError(totalOccupancy);
+      if (capacityError) {
+        alert(capacityError);
         return;
       }
 
