@@ -5,7 +5,7 @@ from sqlalchemy import select
 from typing import List
 from uuid import UUID
 from app.core.database import get_db
-from app.core.dependencies import get_current_user, get_effective_role, RoleChecker
+from app.core.dependencies import get_current_user, is_hr_admin, RoleChecker
 from app.models import Employee, ChecklistTask
 from app.schemas import ChecklistTaskOut, SkipRequest
 
@@ -54,7 +54,7 @@ async def get_my_checklist(
 
 @router.get("/{employee_id}", response_model=List[ChecklistTaskOut])
 async def get_employee_checklist(employee_id: UUID, db: AsyncSession = Depends(get_db), current_user: Employee = Depends(get_current_user)):
-    is_admin = get_effective_role(current_user) == "hr_admin"
+    is_admin = is_hr_admin(current_user)
     
     if current_user.id != employee_id and not is_admin:
         raise HTTPException(

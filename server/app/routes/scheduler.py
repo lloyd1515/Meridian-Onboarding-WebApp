@@ -6,7 +6,7 @@ from typing import List, Dict
 from uuid import UUID
 from app.core.constants import OFFICE_CAPACITY, OFFICE_CAPACITY_WARNING, MAX_OFFICE_DAYS_PER_WEEK
 from app.core.database import get_db
-from app.core.dependencies import get_current_user, get_effective_role
+from app.core.dependencies import get_current_user, is_hr_admin
 from app.models import Employee, ScheduleEntry
 from app.schemas import SchedulerSubmit, ScheduleEntryOut
 
@@ -54,7 +54,7 @@ async def submit_schedules(payload: SchedulerSubmit, db: AsyncSession = Depends(
         raise HTTPException(status_code=403, detail="Office days can only be booked from your start date onward")
 
     if payload.employee_id and payload.employee_id != current_user.id:
-        is_admin = get_effective_role(current_user) == "hr_admin"
+        is_admin = is_hr_admin(current_user)
         if not is_admin:
             raise HTTPException(status_code=403, detail="Access denied")
         target_employee_id = payload.employee_id

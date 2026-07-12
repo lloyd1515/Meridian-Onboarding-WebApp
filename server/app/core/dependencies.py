@@ -11,6 +11,11 @@ def get_effective_role(user: Employee) -> str:
     is_preboardee = (user.role == "preboardee") or (user.hire_date > today)
     return "preboardee" if is_preboardee else user.role
 
+def is_hr_admin(user: Employee) -> bool:
+    """Self-or-admin check used by per-row RBAC (view/edit *this specific*
+    record): is the current effective role hr_admin?"""
+    return get_effective_role(user) == "hr_admin"
+
 async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)) -> Employee:
     # Access token from cookies
     token = request.cookies.get("access_token")

@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 from typing import List
 from uuid import UUID
 from app.core.database import get_db
-from app.core.dependencies import get_current_user, get_effective_role, RoleChecker
+from app.core.dependencies import get_current_user, is_hr_admin, RoleChecker
 from app.models import Employee, Question
 from app.schemas import QuestionCreate, QuestionOut, AnswerRequest
 
@@ -47,7 +47,7 @@ async def list_questions(
     current_user: Employee = Depends(get_current_user),
 ):
     """Employees see only their own questions; HR admins see every question."""
-    is_admin = get_effective_role(current_user) == "hr_admin"
+    is_admin = is_hr_admin(current_user)
 
     stmt = select(Question).options(selectinload(Question.employee)).order_by(Question.created_at.desc())
     if not is_admin:
