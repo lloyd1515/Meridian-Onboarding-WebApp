@@ -79,4 +79,27 @@ describe('RelationshipExplorer Slack integration', () => {
     });
     expect(await screen.findByText('Sent!')).toBeInTheDocument();
   });
+
+  // Regression test: formatSlackTemplate used to build the "intro yourself"
+  // message straight from currentUser.name/role with no sanitization, unlike
+  // OnboardingChecklist's equivalent formatter. A name/role containing Slack
+  // mention syntax (e.g. "@channel") could then ping the whole channel when
+  // sent. The shared useSlackSend hook's sanitizeSlackText now strips that.
+  it('sanitizes Slack mention syntax out of the sender name/role in the intro template', async () => {
+    mockGetSlackConfigured.mockResolvedValue(true);
+    mockSendSlackMessage.mockResolvedValue(true);
+    const maliciousUser: Employee = { ...currentUser, name: '@channel Jane', role: '@here Specialist' };
+    const user = userEvent.setup();
+    render(<RelationshipExplorer currentUser={maliciousUser} employees={[maliciousUser, buddy]} />);
+
+    const buddyCards = await screen.findAllByRole('button', { name: /view contact details for alex buddy/i });
+    await user.click(buddyCards[0]);
+
+    const introSendButton = await screen.findByRole('button', { name: /send introduction to slack/i });
+    await user.click(introSendButton);
+
+    await waitFor(() => {
+      expect(mockSendSlackMessage).toHaveBeenCalledWith(expect.not.stringContaining('@'));
+    });
+  });
 });

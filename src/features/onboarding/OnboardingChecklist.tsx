@@ -1,7 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useDb } from '../../context/DbContext';
-import { getEmployeeChecklist, saveEmployeeChecklist, isTaskOverdue, Task, Employee, getSlackConfigured, sendSlackMessage } from '../../services/db';
+import { getEmployeeChecklist, saveEmployeeChecklist, isTaskOverdue, Task, Employee } from '../../services/db';
+import { useSlackSend, sanitizeSlackText } from '../../hooks/useSlackSend';
+
+const SLACK_INTRO_KEY = 'buddy-intro';
 
 export const OnboardingChecklist: React.FC = () => {
   const { currentUser, simulationDate } = useAuth();
@@ -15,12 +18,10 @@ export const OnboardingChecklist: React.FC = () => {
   const [showParticlesForId, setShowParticlesForId] = useState<string | null>(null);
   const [srAnnouncement, setSrAnnouncement] = useState<string>('');
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [copiedSlack, setCopiedSlack] = useState<boolean>(false);
-  const [slackConfigured, setSlackConfigured] = useState<boolean>(false);
-  const [sendingSlack, setSendingSlack] = useState<boolean>(false);
-  const [slackSent, setSlackSent] = useState<boolean>(false);
-  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const sendTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { slackConfigured, copiedKey, sendingKey, sentKey, copyMessage, sendMessage } = useSlackSend();
+  const copiedSlack = copiedKey === SLACK_INTRO_KEY;
+  const sendingSlack = sendingKey === SLACK_INTRO_KEY;
+  const slackSent = sentKey === SLACK_INTRO_KEY;
 
 
   const loadTasks = async () => {
@@ -32,10 +33,6 @@ export const OnboardingChecklist: React.FC = () => {
   useEffect(() => {
     loadTasks();
   }, [currentUser]);
-
-  useEffect(() => {
-    getSlackConfigured().then(setSlackConfigured);
-  }, []);
 
   const handleCompleteTask = async (taskId: string) => {
     if (!currentUser) return;
@@ -201,50 +198,23 @@ export const OnboardingChecklist: React.FC = () => {
 
   // Pure Fabrication / Information Expert: Formats & sanitizes Slack intro message
   const formatSlackIntroMessage = (slackHandle?: string, userName?: string): string => {
-    const cleanHandle = (slackHandle || 'buddy').replace(/^@+/, '').replace(/[@<|>\x00-\x1F\x7F-\x9F]/g, '');
-    const cleanName = (userName || 'a new hire').replace(/[@<|>\x00-\x1F\x7F-\x9F]/g, '');
+    const cleanHandle = sanitizeSlackText(slackHandle || 'buddy');
+    const cleanName = sanitizeSlackText(userName || 'a new hire');
     return `Hi @${cleanHandle}! I'm ${cleanName} at Meridian. Looking forward to our onboarding meeting!`;
   };
 
   const handleCopySlackIntro = async () => {
     const msg = formatSlackIntroMessage(assignedBuddy?.slackHandle, currentUser?.name);
-    
-    if (copyTimeoutRef.current) {
-      clearTimeout(copyTimeoutRef.current);
-    }
-
-    try {
-      if (!navigator.clipboard?.writeText) {
-        throw new Error('Clipboard API unsupported');
-      }
-      await navigator.clipboard.writeText(msg);
-      setCopiedSlack(true);
-      setSrAnnouncement("Slack message template copied to clipboard.");
-      copyTimeoutRef.current = setTimeout(() => {
-        setCopiedSlack(false);
-        setSrAnnouncement("");
-      }, 3000);
-    } catch (err) {
-      setSrAnnouncement("Failed to copy Slack message template to clipboard.");
-    }
+    const success = await copyMessage(SLACK_INTRO_KEY, msg);
+    setSrAnnouncement(success ? "Slack message template copied to clipboard." : "Failed to copy Slack message template to clipboard.");
+    setTimeout(() => setSrAnnouncement(""), 3000);
   };
 
   const handleSendSlackIntro = async () => {
     const msg = formatSlackIntroMessage(assignedBuddy?.slackHandle, currentUser?.name);
-
-    if (sendTimeoutRef.current) {
-      clearTimeout(sendTimeoutRef.current);
-    }
-
-    setSendingSlack(true);
-    const sent = await sendSlackMessage(msg);
-    setSendingSlack(false);
-    setSlackSent(sent);
+    const sent = await sendMessage(SLACK_INTRO_KEY, msg);
     setSrAnnouncement(sent ? "Slack message sent." : "Failed to send Slack message.");
-    sendTimeoutRef.current = setTimeout(() => {
-      setSlackSent(false);
-      setSrAnnouncement("");
-    }, 3000);
+    setTimeout(() => setSrAnnouncement(""), 3000);
   };
 
   return (
