@@ -28,6 +28,7 @@ export const ChecklistTemplateEditor: React.FC = () => {
   const [isOpenForm, setIsOpenForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ChecklistTemplateInput>(emptyFormState);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const loadTemplates = async () => {
     setIsLoading(true);
@@ -89,6 +90,21 @@ export const ChecklistTemplateEditor: React.FC = () => {
       setTemplates(prev => prev.filter(t => t.id !== id));
     } catch (err: any) {
       setError(err.message || 'Failed to delete checklist template');
+    } finally {
+      setConfirmDeleteId(null);
+    }
+  };
+
+  // Deleting a template is a single-click-away, permanent action (unlike
+  // Backup/Restore's typed "RESTORE" gate, there was previously no
+  // confirmation step at all). A lighter inline button-swap is proportionate
+  // here given the smaller blast radius: clicking "Delete" once arms a
+  // "Confirm"/"Cancel" pair in its place instead of deleting immediately.
+  const handleDeleteClick = (id: string) => {
+    if (confirmDeleteId === id) {
+      handleDelete(id);
+    } else {
+      setConfirmDeleteId(id);
     }
   };
 
@@ -160,12 +176,29 @@ export const ChecklistTemplateEditor: React.FC = () => {
                         >
                           Edit
                         </button>
-                        <button
-                          onClick={() => handleDelete(template.id)}
-                          className="text-caption font-mono uppercase text-danger hover:underline"
-                        >
-                          Delete
-                        </button>
+                        {confirmDeleteId === template.id ? (
+                          <>
+                            <button
+                              onClick={() => handleDelete(template.id)}
+                              className="text-caption font-mono uppercase text-danger font-bold hover:underline"
+                            >
+                              Confirm Delete
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="text-caption font-mono uppercase text-text-muted hover:underline"
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => handleDeleteClick(template.id)}
+                            className="text-caption font-mono uppercase text-danger hover:underline"
+                          >
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}

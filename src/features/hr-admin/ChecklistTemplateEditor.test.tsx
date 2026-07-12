@@ -64,4 +64,37 @@ describe('ChecklistTemplateEditor', () => {
 
     expect(await screen.findByText('Sign employment contract (updated)')).toBeInTheDocument();
   });
+
+  it('blocks delete until confirmed, and leaves the template intact on cancel', async () => {
+    // Regression test: deleting a template used to fire immediately on a
+    // single "DELETE" click, unlike Backup/Restore's typed-confirmation
+    // gate -- one misclick permanently deleted a template.
+    const user = userEvent.setup();
+    render(<ChecklistTemplateEditor />);
+
+    await screen.findByText('Sign employment contract');
+    await user.click(screen.getByRole('button', { name: /^delete$/i }));
+
+    // First click only arms confirmation; the delete endpoint must not be
+    // called yet, and the template must still be visible.
+    expect(mockDeleteChecklistTemplate).not.toHaveBeenCalled();
+    expect(screen.getByText('Sign employment contract')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /cancel/i }));
+    expect(mockDeleteChecklistTemplate).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /^delete$/i })).toBeInTheDocument();
+  });
+
+  it('deletes the template once the confirmation click follows', async () => {
+    mockDeleteChecklistTemplate.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    render(<ChecklistTemplateEditor />);
+
+    await screen.findByText('Sign employment contract');
+    await user.click(screen.getByRole('button', { name: /^delete$/i }));
+    await user.click(screen.getByRole('button', { name: /confirm delete/i }));
+
+    expect(mockDeleteChecklistTemplate).toHaveBeenCalledTimes(1);
+    expect(mockDeleteChecklistTemplate).toHaveBeenCalledWith('template-1');
+  });
 });
