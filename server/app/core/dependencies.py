@@ -6,8 +6,10 @@ from app.core.database import get_db
 from app.core.security import verify_token
 from app.models import Employee
 
+from app.core.simulation import get_today
+
 def get_effective_role(user: Employee) -> str:
-    today = datetime.date.today()
+    today = get_today()
     is_preboardee = (user.role == "preboardee") or (user.hire_date > today)
     return "preboardee" if is_preboardee else user.role
 

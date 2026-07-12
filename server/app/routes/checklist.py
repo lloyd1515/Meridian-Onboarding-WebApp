@@ -71,7 +71,8 @@ async def complete_task(task_id: UUID, db: AsyncSession = Depends(get_db), curre
     # onboarding tasks only become actionable from the hire date onward.
     # Date-based (not role-based): a stale 'preboardee' role must not keep
     # blocking someone whose start date has passed.
-    if current_user.hire_date > datetime.date.today():
+    from app.core.simulation import get_today
+    if current_user.hire_date > get_today():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Checklist tasks can only be completed from your start date onward"
@@ -96,7 +97,9 @@ async def complete_task(task_id: UUID, db: AsyncSession = Depends(get_db), curre
 @router.post("/{task_id}/skip", response_model=ChecklistTaskOut)
 async def skip_task(task_id: UUID, payload: SkipRequest, db: AsyncSession = Depends(get_db), current_user: Employee = Depends(get_current_user)):
     # Same pre-boarding gate as complete_task.
-    if current_user.hire_date > datetime.date.today():
+    from app.core.simulation import get_today
+    # Same pre-boarding gate as complete_task.
+    if current_user.hire_date > get_today():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Checklist tasks can only be skipped from your start date onward"

@@ -83,10 +83,8 @@ async def signup(response: Response, payload: SignupRequest, db: AsyncSession = 
             detail="Email address already registered"
         )
 
-    # Role is always computed server-side and can never be supplied by the caller:
-    # signup can only ever produce "employee" or "preboardee". Admins (hr_admin) and
-    # other privileged roles are seeded/created by an existing admin, never via self-signup.
-    assigned_role = "preboardee" if payload.hire_date > date.today() else "employee"
+    from app.core.simulation import get_today
+    assigned_role = "preboardee" if payload.hire_date > get_today() else "employee"
 
     hashed = hash_password(payload.password)
     user = Employee(

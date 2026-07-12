@@ -36,7 +36,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<Employee | null>(null);
   const [role, setRoleState] = useState<'employee' | 'admin'>('employee');
-  const [simulationDate, setSimulationDateState] = useState<string>(todayIso);
+  const [simulationDate, setSimulationDateState] = useState<string>(() => {
+    return localStorage.getItem('simulationDate') || todayIso();
+  });
   const [isPreboarding, setIsPreboarding] = useState<boolean>(true);
 
   const syncSession = async () => {
@@ -77,6 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const setSimulationDate = (date: string) => {
+    localStorage.setItem('simulationDate', date);
     setSimulationDateState(date);
   };
 
@@ -107,7 +110,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (simulatePreboarding && loggedInEmployee?.hire_date) {
           const preboardingDate = new Date(loggedInEmployee.hire_date);
           preboardingDate.setUTCDate(preboardingDate.getUTCDate() - 3);
-          setSimulationDateState(preboardingDate.toISOString().slice(0, 10));
+          const dateStr = preboardingDate.toISOString().slice(0, 10);
+          localStorage.setItem('simulationDate', dateStr);
+          setSimulationDateState(dateStr);
         }
 
         return true;

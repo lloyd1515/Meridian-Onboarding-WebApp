@@ -62,6 +62,26 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 return await rate_limit_exceeded_handler(request, exc)
         return await call_next(request)
 
+from app.core.simulation import simulated_date_ctx
+import datetime
+
+class SimulationDateMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        sim_date_header = request.headers.get("x-simulation-date")
+        token = None
+        if sim_date_header:
+            try:
+                parsed_date = datetime.datetime.strptime(sim_date_header, "%Y-%m-%d").date()
+                token = simulated_date_ctx.set(parsed_date)
+            except ValueError:
+                pass
+        
+        try:
+            return await call_next(request)
+        finally:
+            if token is not None:
+                simulated_date_ctx.reset(token)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting up FastAPI application", environment=settings.ENVIRONMENT, log_level=settings.LOG_LEVEL)
@@ -81,6 +101,9 @@ app.state.limiter = limiter
 app.state.scheduler_limiter = scheduler_limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 app.add_middleware(RateLimitMiddleware)
+
+# Apply Simulation Date middleware
+app.add_middleware(SimulationDateMiddleware)
 
 # Apply Correlation ID middleware
 app.add_middleware(CorrelationIdMiddleware)

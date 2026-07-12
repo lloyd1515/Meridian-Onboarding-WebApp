@@ -53,7 +53,7 @@ async def seed():
             slack_handle="@alex.j",
             role="employee",
             department="Engineering",
-            hire_date=datetime.date(2023, 6, 10),
+            hire_date=datetime.date.today(),
             hashed_password=default_pwd,
             hybrid_preference="HYBRID",
             assigned_desk="desk-25"
@@ -89,6 +89,10 @@ async def seed():
         # used by signup and HR's "Add New Hire" flow (checklist_templates.py)
         print("Seeding checklist tasks for Jane Doe...")
         await seed_checklist_tasks(session, new_hire.id, new_hire.department)
+
+        # Seed Alex Johnson's checklist tasks
+        print("Seeding checklist tasks for Alex Johnson...")
+        await seed_checklist_tasks(session, buddy.id, buddy.department)
 
         # Seed initial Schedule Entries matching db.ts (DayIndex mappings converted to dates)
         # Week of July 6, 2026: 

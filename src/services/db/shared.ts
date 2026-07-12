@@ -18,17 +18,29 @@ export const customFetch = async (input: RequestInfo | URL, init?: RequestInit):
   const urlString = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
   const isRefreshRequest = urlString.includes('/auth/refresh');
 
-  const response = await fetch(input, init);
+  const simDate = localStorage.getItem('simulationDate');
+  let updatedInit = init || {};
+  if (simDate) {
+    const headersObj = new Headers(updatedInit.headers);
+    headersObj.set('X-Simulation-Date', simDate);
+    updatedInit = { ...updatedInit, headers: headersObj };
+  }
+
+  const response = await fetch(input, updatedInit);
 
   if (response.status === 401 && !isRefreshRequest) {
     if (!refreshPromise) {
       refreshPromise = (async () => {
         try {
+          const refreshHeaders: Record<string, string> = {
+            'X-CSRF-Token': getCSRFToken()
+          };
+          if (simDate) {
+            refreshHeaders['X-Simulation-Date'] = simDate;
+          }
           const refreshRes = await fetch(`${API_URL}/auth/refresh`, {
             method: 'POST',
-            headers: {
-              'X-CSRF-Token': getCSRFToken()
-            },
+            headers: refreshHeaders,
             ...credentialsOptions
           });
           return refreshRes.ok;
@@ -44,14 +56,14 @@ export const customFetch = async (input: RequestInfo | URL, init?: RequestInit):
     const refreshSuccess = await refreshPromise;
 
     if (refreshSuccess) {
-      let updatedInit = init || {};
-      const method = (updatedInit.method || 'GET').toUpperCase();
-      const headersObj = new Headers(updatedInit.headers);
+      let retryInit = updatedInit || {};
+      const method = (retryInit.method || 'GET').toUpperCase();
+      const headersObj = new Headers(retryInit.headers);
       if (['POST', 'PUT', 'DELETE'].includes(method)) {
         headersObj.set('X-CSRF-Token', getCSRFToken());
       }
-      updatedInit = { ...updatedInit, headers: headersObj };
-      return fetch(input, updatedInit);
+      retryInit = { ...retryInit, headers: headersObj };
+      return fetch(input, retryInit);
     }
   }
 
